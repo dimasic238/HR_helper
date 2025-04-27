@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель администратора</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Панель администратора</h1>
+        <div class="user-info">
+            <span>{{ current_user.name }}</span>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Выйти</a>
+        </div>
+    </header>
+
+    <div class="admin-container">
+        <section class="users-section">
+            <h2>Все пользователи</h2>
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>ФИО</th>
+                        <th>Роль</th>
+                        <th>Email</th>
+                        <th>Телефон</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.surname }} {{ user.name }}</td>
+                        <td>{{ user.role }}</td>
+                        <td>{{ user.mail }}</td>
+                        <td>{{ user.phone }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <div class="admin-stats">
+            <div class="stat-card">
+                <h3>Кандидатов</h3>
+                <p>{{ candidates|length }}</p>
+            </div>
+            <div class="stat-card">
+                <h3>HR-менеджеров</h3>
+                <p>{{ hr_list|length }}</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

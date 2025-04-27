@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Просмотр отчета: {{ report.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hr.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>{{ report.name }}</h1>
+        <div class="report-meta">
+            <p>Автор: {{ report.hr.user.surname }} {{ report.hr.user.name }}</p>
+            <p>Дата создания: {{ report.created_at.strftime('%d.%m.%Y %H:%M') if report.created_at else 'Не указана' }}</p>
+        </div>
+        
+        <div class="report-content">
+            {{ report.text|safe }}
+        </div>
+        
+        <div class="actions">
+            <a href="{{ url_for('hr') }}" class="button">Назад</a>
+            <a href="{{ url_for('download_report', report_id=report.id, format='pdf') }}" class="button primary">Скачать PDF</a>
+            <a href="{{ url_for('download_report', report_id=report.id, format='word') }}" class="button primary">Скачать Word</a>
+        </div>
+    </div>
+</body>
+</html>

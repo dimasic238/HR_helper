@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактор карт</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .editor-container {
+            display: flex;
+            width: 100%;
+            gap: 15px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+        }
+
+        .tools-board {
+            width: 250px;
+            padding: 15px;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .row {
+            margin-bottom: 20px;
+        }
+
+        .row .title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .row .options {
+            list-style: none;
+            margin: 10px 0 0 5px;
+        }
+
+        .row .options .option {
+            display: flex;
+            cursor: pointer;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .option:is(:hover, .active) img {
+            filter: invert(17%) sepia(90%) saturate(3000%) hue-rotate(900deg) brightness(100%) contrast(100%);
+        }
+
+        .option :where(span, label) {
+            color: #5A6168;
+            cursor: pointer;
+            padding-left: 10px;
+        }
+
+        .option:is(:hover, .active) :where(span, label) {
+            color: #4A98F7;
+        }
+
+        .option #fill-color {
+            cursor: pointer;
+            height: 14px;
+            width: 14px;
+        }
+
+        #fill-color:checked ~ label {
+            color: #4A98F7;
+        }
+
+        .option #size-slider {
+            width: 100%;
+            height: 5px;
+            margin-top: 10px;
+        }
+
+        .colors .options {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .colors .option {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            margin-top: 3px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .colors .option.selected::before {
+            position: absolute;
+            content: "";
+            top: 50%;
+            left: 50%;
+            height: 12px;
+            width: 12px;
+            background: inherit;
+            border-radius: inherit;
+            border: 2px solid #fff;
+            transform: translate(-50%, -50%);
+        }
+
+        .colors .option:first-child.selected::before {
+            border-color: #ccc;
+        }
+
+        .option #color-picker {
+            opacity: 0;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+        }
+
+        .buttons button {
+            width: 100%;
+            color: #fff;
+            border: none;
+            outline: none;
+            padding: 10px 0;
+            font-size: 14px;
+            margin-bottom: 10px;
+            background: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .buttons .clear-canvas {
+            color: #6C757D;
+            border: 1px solid #6C757D;
+            transition: all 0.3s ease;
+        }
+
+        .clear-canvas:hover {
+            color: #fff;
+            background: #6C757D;
+        }
+
+        .buttons .save-map {
+            background: #4A98F7;
+            border: 1px solid #4A98F7;
+        }
+
+        .drawing-board {
+            flex: 1;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            height: 700px;
+        }
+
+        .drawing-board canvas {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="editor-title">Создание новой карты</h1>
+        
+        <div class="editor-container">
+            <!-- Панель инструментов -->
+            <section class="tools-board">
+                <div class="form-group">
+                    <label for="map-name">Название карты:</label>
+                    <input type="text" id="map-name" required>
+                </div>
+                
+                <div class="row">
+                    <label class="title">Формы</label>
+                    <ul class="options">
+                        <li class="option tool" id="rectangle">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="2" y="2" width="16" height="16" rx="1" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            <span>Прямоугольник</span>
+                        </li>
+                        <li class="option tool" id="circle">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            <span>Круг</span>
+                        </li>
+                        <li class="option tool" id="triangle">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 3L17 17H3L10 3Z" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            <span>Треугольник</span>
+                        </li>
+                        <li class="option">
+                            <input type="checkbox" id="fill-color">
+                            <label for="fill-color">Цвет заливки</label>
+                        </li>
+                    </ul>
+                </div>
+                <div class="row">
+                    <label class="title">Инструменты</label>
+                    <ul class="options">
+                        <li class="option active tool" id="brush">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 18L18 2M5 15L3 17M9 11L5 15M13 7L9 11M17 3L13 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <span>Кисть</span>
+                        </li>
+                        <li class="option tool" id="eraser">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 15L15 5M3 17L7 13L13 7L17 3M13 7L7 13M7 13L3 17L7 13ZM13 7L17 3L13 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Ластик</span>
+                        </li>
+                        <li class="option">
+                            <input type="range" id="size-slider" min="1" max="30" value="5">
+                        </li>
+                    </ul>
+                </div>
+                <div class="row colors">
+                    <label class="title">Цвета</label>
+                    <ul class="options">
+                        <li class="option" style="background-color: #fff; border: 1px solid #bfbfbf;"></li>
+                        <li class="option selected" style="background-color: #000;"></li>
+                        <li class="option" style="background-color: #E02020;"></li>
+                        <li class="option" style="background-color: #6DD400;"></li>
+                        <li class="option">
+                            <input type="color" id="color-picker" value="#4A98F7">
+                        </li>
+                    </ul>
+                </div>
+                <div class="row buttons">
+                    <button class="clear-canvas">Очистить холст</button>
+                    <button class="save-map">Сохранить карту</button>
+                </div>
+            </section>
+
+            <!-- Холст для рисования -->
+            <section class="drawing-board">
+                <canvas id="drawing-canvas"></canvas>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const canvas = document.getElementById("drawing-canvas");
+            const ctx = canvas.getContext("2d");
+            const toolBtns = document.querySelectorAll(".tool");
+            const fillColor = document.getElementById("fill-color");
+            const sizeSlider = document.getElementById("size-slider");
+            const colorBtns = document.querySelectorAll(".colors .option");
+            const colorPicker = document.getElementById("color-picker");
+            const clearCanvas = document.querySelector(".clear-canvas");
+            const saveMapBtn = document.querySelector(".save-map");
+            const mapNameInput = document.getElementById("map-name");
+            const editorTitle = document.getElementById("editor-title");
+            
+            // Параметры рисования
+            let prevMouseX, prevMouseY, snapshot,
+                isDrawing = false,
+                selectedTool = "brush",
+                brushWidth = 5,
+                selectedColor = "#000";
+            
+            // Установка белого фона
+            const setCanvasBackground = () => {
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = selectedColor;
+            }
+            
+            // Инициализация холста
+            const initCanvas = () => {
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+                setCanvasBackground();
+                
+                // Если есть карта для редактирования, загружаем её
+                const mapData = "{{ map.image_data if map else '' }}";
+                if (mapData) {
+                    const img = new Image();
+                    img.onload = function() {
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    };
+                    img.src = mapData;
+                    editorTitle.textContent = `Редактирование карты: {{ map.name }}`;
+                    mapNameInput.value = "{{ map.name }}";
+                }
+            }
+            
+            // Рисование прямоугольника
+            const drawRect = (e) => {
+                if (!fillColor.checked) {
+                    return ctx.strokeRect(e.offsetX, e.offsetY, prevMouseX - e.offsetX, prevMouseY - e.offsetY);
+                }
+                ctx.fillRect(e.offsetX, e.offsetY, prevMouseX - e.offsetX, prevMouseY - e.offsetY);
+            }
+            
+            // Рисование круга
+            const drawCircle = (e) => {
+                ctx.beginPath();
+                let radius = Math.sqrt(Math.pow((prevMouseX - e.offsetX), 2) + Math.pow((prevMouseY - e.offsetY), 2));
+                ctx.arc(prevMouseX, prevMouseY, radius, 0, 2 * Math.PI);
+                fillColor.checked ? ctx.fill() : ctx.stroke();
+            }
+            
+            // Рисование треугольника
+            const drawTriangle = (e) => {
+                ctx.beginPath();
+                ctx.moveTo(prevMouseX, prevMouseY);
+                ctx.lineTo(e.offsetX, e.offsetY);
+                ctx.lineTo(prevMouseX * 2 - e.offsetX, e.offsetY);
+                ctx.closePath();
+                fillColor.checked ? ctx.fill() : ctx.stroke();
+            }
+            
+            // Выбор инструмента
+            toolBtns.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    document.querySelector(".options .active").classList.remove("active");
+                    btn.classList.add("active");
+                    selectedTool = btn.id;
+                });
+            });
+            
+            // Изменение размера кисти
+            sizeSlider.addEventListener("input", () => {
+                brushWidth = sizeSlider.value;
+            });
+            
+            // Выбор цвета
+            colorBtns.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    document.querySelector(".options .selected").classList.remove("selected");
+                    btn.classList.add("selected");
+                    selectedColor = window.getComputedStyle(btn).getPropertyValue("background-color");
+                });
+            });
+            
+            colorPicker.addEventListener("change", () => {
+                colorPicker.parentElement.style.background = colorPicker.value;
+                colorPicker.parentElement.click();
+            });
+            
+            // Очистка холста
+            clearCanvas.addEventListener("click", () => {
+                if (confirm("Вы уверены, что хотите очистить холст?")) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    setCanvasBackground();
+                }
+            });
+            
+          // Сохранение карты
+saveMapBtn.addEventListener("click", () => {
+    const name = mapNameInput.value.trim();
+    if (!name) {
+        alert("Введите название карты");
+        return;
+    }
+    
+    const imageData = canvas.toDataURL("image/png");
+    const mapId = "{{ map.id if map else '' }}";
+    
+    // Определяем URL и метод в зависимости от того, редактируем или создаем
+    const url = mapId ? `/update_map/${mapId}` : '/create_map';
+    const method = 'POST'; // Всегда используем POST
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest' // Добавляем заголовок для Flask
+        },
+        body: JSON.stringify({
+            name: name,
+            image_data: imageData
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => { throw new Error(text) });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            window.location.href = "{{ url_for('maps') }}";
+        } else {
+            alert('Ошибка при сохранении: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при сохранении. Проверьте консоль для деталей.');
+    });
+});
+
+            
+            // Начало рисования
+            const startDraw = (e) => {
+                isDrawing = true;
+                prevMouseX = e.offsetX;
+                prevMouseY = e.offsetY;
+                ctx.beginPath();
+                ctx.lineWidth = brushWidth;
+                ctx.strokeStyle = selectedColor;
+                ctx.fillStyle = selectedColor;
+                snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            }
+            
+            // Процесс рисования
+            const drawing = (e) => {
+                if (!isDrawing) return;
+                ctx.putImageData(snapshot, 0, 0);
+                
+                if (selectedTool === "brush" || selectedTool === "eraser") {
+                    ctx.strokeStyle = selectedTool === "eraser" ? "#fff" : selectedColor;
+                    ctx.lineTo(e.offsetX, e.offsetY);
+                    ctx.stroke();
+                } else if (selectedTool === "rectangle") {
+                    drawRect(e);
+                } else if (selectedTool === "circle") {
+                    drawCircle(e);
+                } else if (selectedTool === "triangle") {
+                    drawTriangle(e);
+                }
+            }
+            
+            // Окончание рисования
+            const endDrawing = () => {
+                isDrawing = false;
+            }
+            
+            // Назначение обработчиков событий
+            canvas.addEventListener("mousedown", startDraw);
+            canvas.addEventListener("mousemove", drawing);
+            canvas.addEventListener("mouseup", endDrawing);
+            canvas.addEventListener("mouseout", endDrawing);
+            
+            // Инициализация при загрузке
+            window.addEventListener("load", initCanvas);
+        });
+    </script>
+</body>
+</html>

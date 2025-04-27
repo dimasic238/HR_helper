@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактирование теста</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_test.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Редактирование теста: <span id="testTitle">{{ test.name }}</span></h1>
+        
+        <form id="testForm">
+            <input type="hidden" id="testId" value="{{ test.id }}">
+            
+            <div class="form-group">
+                <label for="testName">Название теста:</label>
+                <input type="text" id="testName" value="{{ test.name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="testDescription">Описание теста:</label>
+                <textarea id="testDescription">{{ test.description }}</textarea>
+            </div>
+            
+            <div id="questionsContainer">
+                {% for question in questions %}
+                <div class="question-card" data-index="{{ loop.index0 }}">
+                    <h3>Вопрос {{ loop.index }}</h3>
+                    
+                    <div class="form-group">
+                        <label>Текст вопроса:</label>
+                        <input type="text" class="question-text" value="{{ question.question_text }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Тип вопроса:</label>
+                        <select class="question-type" onchange="updateQuestionType(this)">
+                            <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Текстовый ответ</option>
+                            <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Один вариант</option>
+                            <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Несколько вариантов</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Баллы за вопрос:</label>
+                        <input type="number" class="question-points" value="{{ question.points }}" min="1" required>
+                    </div>
+                    
+                    <div class="options-container" {% if question.question_type == 'text' %}style="display:none;"{% endif %}>
+                        {% if question.question_type != 'text' %}
+                        <label>Варианты ответов (каждый с новой строки):</label>
+                        <textarea class="question-options">{% if question.options %}{{ question.options|join('\n') }}{% endif %}</textarea>
+                        
+                        <label>Правильный ответ:</label>
+                        {% if question.question_type == 'single' %}
+                        <select class="correct-answer">
+                            {% for option in question.options %}
+                            <option {% if option in question.correct_answer %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <div class="correct-answers">
+                            {% for option in question.options %}
+                            <label>
+                                <input type="checkbox" {% if option in question.correct_answer %}checked{% endif %}>
+                                {{ option }}
+                            </label><br>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="button primary">Сохранить тест</button>
+                <a href="{{ url_for('hr') }}" class="button">Отмена</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    // Обновление типа вопроса
+    function updateQuestionType(select) {
+        const container = $(select).closest('.question-card').find('.options-container');
+        if (select.value === 'text') {
+            container.hide().empty();
+        } else {
+            container.show().html(`
+                <label>Варианты ответов (каждый с новой строки):</label>
+                <textarea class="question-options"></textarea>
+                <div class="options-preview"></div>
+            `);
+        }
+    }
+
+    // Отправка формы
+    $('#testForm').submit(function(e) {
+        e.preventDefault();
+        
+        const testData = {
+            test_id: $('#testId').val(),
+            test_name: $('#testName').val(),
+            test_description: $('#testDescription').val(),
+            questions: []
+        };
+        
+        // Собираем данные вопросов
+        $('.question-card').each(function() {
+            const type = $(this).find('.question-type').val();
+            const question = {
+                text: $(this).find('.question-text').val(),
+                type: type,
+                points: parseInt($(this).find('.question-points').val())
+            };
+            
+            if (type !== 'text') {
+                const optionsText = $(this).find('.question-options').val();
+                question.options = optionsText.split('\n').filter(opt => opt.trim() !== '');
+                
+                if (type === 'single') {
+                    question.correct_answer = [$(this).find('.correct-answer').val()];
+                } else if (type === 'multiple') {
+                    const correct = [];
+                    $(this).find('.correct-answers input:checked').each(function() {
+                        correct.push($(this).next().text().trim());
+                    });
+                    question.correct_answer = correct;
+                }
+            }
+            
+            testData.questions.push(question);
+        });
+        
+        // Отправка на сервер
+        $.ajax({
+            url: "{{ url_for('edit_test') }}",
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(testData),
+            success: function(data) {
+                if (data.success) {
+                    alert('Тест успешно сохранен!');
+                    window.location.href = "{{ url_for('hr') }}";
+                } else {
+                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            },
+            error: function(xhr) {
+                alert('Произошла ошибка при сохранении теста');
+                console.error(xhr.responseText);
+            }
+        });
+    });
+    </script>
+</body>
+</html>

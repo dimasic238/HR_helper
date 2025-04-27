@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hr.css') }}">
+    <style>
+       
+    </style>
+</head>
+<body>
+    <header>
+        <h1>HR Portal</h1>
+        <div class="user-info">
+            <img src="{{ url_for('static', filename='images/placeholder-user.png') }}" alt="Фото пользователя" class="user-photo">
+            <span class="user-name">{{ current_user['name'] }}</span>
+            <a href="{{ url_for('logout') }}" class="button">Выйти</a>
+        </div>
+    </header>
+
+    <nav>
+        <a href="#candidates">Мои кандидаты</a>
+        <a href="#reports">Отчеты</a>
+        <a href="#tests">Тесты</a>
+        <a href="#results">Результаты</a>
+        <a href="#office-guide">Путеводитель по офису</a>
+    </nav>
+
+    <div class="container">
+        <section id="candidates" class="section">
+            <h2>Мои кандидаты</h2>
+            {% if candidates %}
+            <table class="candidate-table">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Фамилия Имя</th>
+                        <th>Телефон</th>
+                        <th>Email</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for candidate in candidates %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ candidate.user.surname }} {{ candidate.user.name }}</td>
+                        <td>{{ candidate.user.phone }}</td>
+                        <td>{{ candidate.user.mail }}</td>
+                        <td>{{ candidate.status }}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="button primary" onclick="hireCandidate('{{ candidate.user.id }}')">Нанять</button>
+                                <button class="button danger" onclick="rejectCandidate('{{ candidate.user.id }}')">Отклонить</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>У вас нет кандидатов</p>
+            {% endif %}
+        </section>
+
+        <section id="reports" class="section">
+            <h2>Отчеты</h2>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Название отчета</th>
+                        <th>Дата создания</th>
+                        <th>Автор</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ report.name }}</td>
+                        <td>{{ report.created_at.strftime('%d.%m.%Y %H:%M') if report.created_at else 'Не указана' }}</td>
+                        <td>{{ report.hr.user.surname }} {{ report.hr.user.name }}</td>
+                        <td>
+                            <a href="{{ url_for('view_report', report_id=report.id) }}" class="button small">Просмотреть</a>
+                            <a href="{{ url_for('download_report', report_id=report.id, format='pdf') }}" class="button small">PDF</a>
+                            <a href="{{ url_for('download_report', report_id=report.id, format='word') }}" class="button small">Word</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5">Нет сохраненных отчетов</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <a href="{{ url_for('report_editor') }}" class="button">Редактор отчетов</a>
+        </section>
+        <section id="tests" class="section">
+            <h2>Тесты</h2>
+            <a href="{{ url_for('create_test') }}" class="button primary">Добавить тест</a>
+            
+            <div class="tests-list">
+                {% for test in tests %}
+                <div class="test-card">
+                    <h3>{{ test.name }}</h3>
+                    <p>Описание: {{ test.description }}</p>
+                    <p>Вопросов: {{ test.questions|length }}</p>
+                    <p>Дата создания: {{ test.created_at.strftime('%d.%m.%Y') }}</p>
+                    
+                    <div class="test-actions">
+                        <a href="{{ url_for('edit_test') }}?test_id={{ test.id }}" class="button secondary">Редактировать</a>
+                        <button onclick="deleteTest('{{ test.id }}')" class="button danger">Удалить</button>
+                    </div>
+                    
+                    <div class="assign-test-form" style="margin-top: 15px;">
+                        <h4>Назначить тест:</h4>
+                        <select class="candidate-select" id="candidate_{{ test.id }}" style="width: 100%; padding: 5px; margin-bottom: 10px;">
+                            {% for candidate in candidates %}
+                            <option value="{{ candidate.id }}">{{ candidate.user.surname }} {{ candidate.user.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button onclick="assignTest('{{ test.id }}')" class="button primary">Назначить</button>
+                    </div>
+                </div>
+                {% else %}
+                <p>У вас нет созданных тестов</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section id="results" class="section">
+            <h2>Результаты тестов</h2>
+            {% if assignments %}
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Кандидат</th>
+                        <th>Тест</th>
+                        <th>Статус</th>
+                        <th>Результат</th>
+                        <th>Дата завершения</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assignment in assignments %}
+                    <tr>
+                        <td>{{ assignment.candidate.user.surname }} {{ assignment.candidate.user.name }}</td>
+                        <td>{{ assignment.test.name }}</td>
+                        <td>
+                            {% if assignment.completed %}
+                            <span class="status-completed">Пройден</span>
+                            {% else %}
+                            <span class="status-pending">Не пройден</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assignment.results %}
+                            {{ assignment.results.score }} / {{ assignment.results.max_score }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assignment.results %}
+                            {{ assignment.results.completed_at.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assignment.results %}
+                            <a href="{{ url_for('hr_test_result', result_id=assignment.results.id) }}" class="button secondary">Просмотр</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>Нет результатов тестирования</p>
+            {% endif %}
+        </section>
+        <section id="job-search" class="section">
+            <h2>Мониторинг поиска работы сотрудниками</h2>
+            <div class="search-container">
+                <select id="companySelect" class="search-input">
+                    <option value="Форсайт">Форсайт</option>
+                    <option value="Другая компания">Другая компания</option>
+                </select>
+                <input type="text" id="employeeName" placeholder="Введите имя и фамилию" class="search-input">
+                <button id="searchBtn" class="button">Проверить</button>
+            </div>
+            <div id="searchResults" class="results-container">
+                <!-- Здесь будут отображаться результаты -->
+            </div>
+        </section>
+        <section id="candidate-search" class="section">
+            <h2>Поиск кандидатов по вакансии</h2>
+            <div class="search-container">
+                <input type="text" id="vacancySearch" placeholder="Введите название вакансии (например: Java разработчик)" class="search-input">
+                <button id="searchCandidatesBtn" class="button">Найти кандидатов</button>
+            </div>
+            <div id="candidatesResults" class="results-container">
+                <!-- Здесь будут отображаться результаты -->
+            </div>
+        </section>
+        <section id="office-guide" class="section">
+            <h2>Путеводитель по офису</h2>
+           
+            <a href="{{ url_for('maps') }}" class="button primary">Модерация путеводителя</a>
+        </section>
+    </div>
+
+    <!-- Модальное окно для оценки кандидата -->
+    <div id="evaluationModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Оценка кандидата</h2>
+            <form id="evaluationForm">
+                <input type="hidden" id="candidateId">
+                <div class="form-group">
+                    <label for="position">Должность:</label>
+                    <input type="text" id="position" required>
+                </div>
+                <div class="form-group">
+                    <label for="creativity">Креативность (1-10):</label>
+                    <input type="number" id="creativity" min="1" max="10" required>
+                </div>
+                <div class="form-group">
+                    <label for="tech_skills">Технические навыки (1-10):</label>
+                    <input type="number" id="tech_skills" min="1" max="10" required>
+                </div>
+                <div class="form-group">
+                    <label for="communication">Коммуникация (1-10):</label>
+                    <input type="number" id="communication" min="1" max="10" required>
+                </div>
+                <div class="form-group">
+                    <label for="time_management">Тайм-менеджмент (1-10):</label>
+                    <input type="number" id="time_management" min="1" max="10" required>
+                </div>
+                <div class="form-group">
+                    <label for="teamwork">Работа в команде (1-10):</label>
+                    <input type="number" id="teamwork" min="1" max="10" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="button primary">Подтвердить</button>
+                    <button type="button" class="button" onclick="closeModal()">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; {{ current_year }} HR Portal. Все права защищены.</p>
+    </footer>
+
+    <script>
+        // Модальное окно
+        const modal = document.getElementById("evaluationModal");
+        const span = document.getElementsByClassName("close")[0];
+        const evaluationForm = document.getElementById("evaluationForm");
+
+        // Функция для открытия модального окна
+        async function hireCandidate(candidateId) {
+            document.getElementById("candidateId").value = candidateId;
+            modal.style.display = "block";
+            evaluationForm.reset();
+        }
+
+        // Функция для закрытия модального окна
+        function closeModal() {
+            modal.style.display = "none";
+        }
+
+        // Закрытие при клике на крестик
+        span.onclick = closeModal;
+
+        // Закрытие при клике вне окна
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // Обработка отправки формы оценки
+        evaluationForm.onsubmit = async function(e) {
+            e.preventDefault();
+            
+            const candidateId = document.getElementById("candidateId").value;
+            const position = document.getElementById("position").value;
+            const creativity = document.getElementById("creativity").value;
+            const tech_skills = document.getElementById("tech_skills").value;
+            const communication = document.getElementById("communication").value;
+            const time_management = document.getElementById("time_management").value;
+            const teamwork = document.getElementById("teamwork").value;
+            
+            if (!creativity || !tech_skills || !communication || !time_management || !teamwork || !position) {
+                alert("Пожалуйста, заполните все поля!");
+                return;
+            }
+            
+            const evaluationData = {
+                position: position,
+                creativity: creativity,
+                tech_skills: tech_skills,
+                communication: communication,
+                time_management: time_management,
+                teamwork: teamwork
+            };
+            
+            try {
+                const response = await fetch(`/hire_candidate/${candidateId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(evaluationData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('Кандидат успешно принят в штат!');
+                    closeModal();
+                    location.reload();
+                } else {
+                    alert(`Ошибка: ${result.error || 'Неизвестная ошибка'}`);
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                alert('Произошла ошибка соединения с сервером');
+            }
+        };
+
+        // Функция для отклонения кандидата
+        async function rejectCandidate(candidateId) {
+            if (confirm('Вы уверены, что хотите отклонить этого кандидата?')) {
+                try {
+                    const response = await fetch(`/reject_candidate/${candidateId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        alert('Кандидат отклонен');
+                        location.reload();
+                    } else {
+                        alert('Ошибка при отклонении кандидата');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Произошла ошибка');
+                }
+            }
+        }
+
+        // Функция для назначения теста
+        function assignTest(testId) {
+            const candidateId = document.getElementById(`candidate_${testId}`).value;
+            
+            fetch("{{ url_for('assign_test') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    test_id: testId,
+                    candidate_id: candidateId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Тест успешно назначен!');
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка');
+            });
+        }
+
+        // Функция для удаления теста
+        function deleteTest(testId) {
+            if (confirm('Вы уверены, что хотите удалить этот тест? Все связанные вопросы и результаты также будут удалены.')) {
+                fetch(`/hr/delete_test/${testId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Тест успешно удален');
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Произошла ошибка при удалении теста');
+                });
+            }
+        }
+        //Функция для Мониторинга поиска работы сотрудниками
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const searchCandidatesBtn = document.getElementById('searchCandidatesBtn');
+            const vacancySearchInput = document.getElementById('vacancySearch');
+            const candidatesResults = document.getElementById('candidatesResults');
+
+            // Функция для получения данных через CORS-прокси
+            async function fetchWithProxy(url) {
+                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+                try {
+                    const response = await fetch(proxyUrl + url, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    return await response.json();
+                } catch (error) {
+                    console.error('Ошибка при запросе:', error);
+                    throw error;
+                }
+            }
+
+            // Парсинг результатов поиска HH.ru
+            function parseHHResults(html) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const items = doc.querySelectorAll('.resume-search-item');
+                
+                return Array.from(items).slice(0, 5).map(item => {
+                    const title = item.querySelector('.resume-search-item__name a')?.textContent.trim() || 'Не указано';
+                    const url = item.querySelector('.resume-search-item__name a')?.href || '#';
+                    const age = item.querySelector('.resume-search-item__age')?.textContent.trim().replace('Возраст: ', '') || 'Не указан';
+                    const salary = item.querySelector('.resume-search-item__compensation')?.textContent.trim() || 'Не указана';
+                    const experience = item.querySelector('.resume-search-item__description-content')?.textContent.trim() || 'Не указан';
+                    const skills = Array.from(item.querySelectorAll('.bloko-tag__section_text')).map(el => el.textContent.trim()).join(', ') || 'Не указаны';
+                    
+                    return {
+                        title,
+                        url: url.startsWith('http') ? url : `https://hh.ru${url}`,
+                        age,
+                        salary,
+                        experience,
+                        skills
+                    };
+                });
+            }
+
+            searchCandidatesBtn.addEventListener('click', async () => {
+                const vacancyText = vacancySearchInput.value.trim();
+                
+                if (!vacancyText) {
+                    candidatesResults.innerHTML = '<p class="error">Введите название вакансии</p>';
+                    return;
+                }
+
+                candidatesResults.innerHTML = '<p>Ищем лучших кандидатов на HH.ru...</p>';
+
+                try {
+                    // Формируем URL для поиска на HH.ru
+                    const searchUrl = `https://hh.ru/search/resume?text=${encodeURIComponent(vacancyText)}&area=1&order_by=relevance`;
+                    
+                    // Получаем HTML страницы через прокси
+                    const response = await fetchWithProxy(searchUrl);
+                    const html = response.contents; // Получаем HTML содержимое
+                    
+                    // Парсим результаты
+                    const candidates = parseHHResults(html);
+                    
+                    if (candidates.length === 0) {
+                        candidatesResults.innerHTML = '<p class="error">Не найдено подходящих резюме. Попробуйте изменить параметры поиска.</p>';
+                        return;
+                    }
+
+                    // Отображаем кандидатов
+                    displayCandidates(candidates);
+                    
+                } catch (error) {
+                    candidatesResults.innerHTML = `
+                        <p class="error">Ошибка при поиске кандидатов: ${error.message}</p>
+                        <p>Попробуйте выполнить поиск напрямую на <a href="https://hh.ru/search/resume?text=${encodeURIComponent(vacancyText)}" target="_blank">HH.ru</a></p>
+                    `;
+                    console.error(error);
+                }
+            });
+
+            function displayCandidates(candidates) {
+                let html = '<h3>Топ-5 кандидатов:</h3><div class="candidates-list">';
+                
+                candidates.forEach(candidate => {
+                    html += `
+                        <div class="candidate-card">
+                            <h3>${candidate.title}</h3>
+                            <div class="candidate-info">
+                                <p><strong>Возраст:</strong> ${candidate.age}</p>
+                                <p><strong>Зарплатные ожидания:</strong> ${candidate.salary}</p>
+                                <p><strong>Опыт:</strong> ${candidate.experience}</p>
+                                <p><strong>Навыки:</strong> ${candidate.skills}</p>
+                            </div>
+                            <div class="candidate-actions">
+                                <a href="${candidate.url}" target="_blank" class="contact-button view-resume">Резюме</a>
+                                <a href="https://hh.ru/employer/vacancy_response?resumeHash=${candidate.url.split('/').pop()}" 
+                                   target="_blank" 
+                                   class="contact-button">Пригласить</a>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                candidatesResults.innerHTML = html;
+            }
+        });
+
+//функция поиска сотрудников
+document.addEventListener('DOMContentLoaded', async () => {
+    const CLIENT_ID = 'RV5EKQCQ9TKN9BKAHHHL34IRT89M5F1ONKOSHVR0B81JC470HS4T3T8PMKI75830';
+    const CLIENT_SECRET = 'IUEACOR6PMO2P3U398C1GTS6FRN3LVA20JMJAL1E3FM0FNNHFD85MDM9Q4LUOS5T';
+    let ACCESS_TOKEN = await getAccessToken();
+
+    // Поиск кандидатов
+    const searchCandidatesBtn = document.getElementById('searchCandidatesBtn');
+    const vacancySearchInput = document.getElementById('vacancySearch');
+    const candidatesResults = document.getElementById('candidatesResults');
+
+    async function getAccessToken() {
+        const response = await fetch('https://hh.ru/oauth/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: CLIENT_ID,
+                client_secret: CLIENT_SECRET
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Ошибка авторизации в HH API');
+        }
+        
+        return (await response.json()).access_token;
+    }
+
+    searchCandidatesBtn.addEventListener('click', async () => {
+        const vacancyText = vacancySearchInput.value.trim();
+        
+        if (!vacancyText) {
+            candidatesResults.innerHTML = '<p class="error">Введите название вакансии</p>';
+            return;
+        }
+
+        candidatesResults.innerHTML = '<p>Ищем лучших кандидатов...</p>';
+
+        try {
+            // Обновляем токен если нужно
+            if (!ACCESS_TOKEN) {
+                ACCESS_TOKEN = await getAccessToken();
+            }
+
+            // Ищем вакансии чтобы получить профессиональную область
+            const vacancies = await searchVacancies(vacancyText);
+            if (vacancies.length === 0) {
+                candidatesResults.innerHTML = '<p class="error">Не найдено вакансий по вашему запросу</p>';
+                return;
+            }
+
+            // Берем профессиональную область из первой вакансии
+            const professionalRole = vacancies[0].professional_roles[0].id;
+            
+            // Ищем резюме по профессиональной области
+            const resumes = await searchResumesByRole(professionalRole);
+            
+            if (resumes.length === 0) {
+                candidatesResults.innerHTML = '<p class="error">Не найдено подходящих резюме</p>';
+                return;
+            }
+
+            // Отображаем топ-5 кандидатов
+            displayCandidates(resumes.slice(0, 5));
+            
+        } catch (error) {
+            candidatesResults.innerHTML = `<p class="error">Ошибка: ${error.message}</p>`;
+            console.error(error);
+        }
+    });
+
+    async function searchVacancies(text) {
+        const url = `https://api.hh.ru/vacancies?text=${encodeURIComponent(text)}&per_page=1`;
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                'User-Agent': 'MyHRApp/1.0'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Ошибка поиска вакансий: ${response.status}`);
+        }
+
+        return (await response.json()).items;
+    }
+
+    async function searchResumesByRole(roleId) {
+        const url = `https://api.hh.ru/resumes?professional_role=${roleId}&per_page=50&order_by=publication_time`;
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                'User-Agent': 'MyHRApp/1.0'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Ошибка поиска резюме: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.items.map(item => ({
+            id: item.id,
+            name: item.title,
+            age: item.age,
+            salary: item.salary ? `${item.salary.amount} ${item.salary.currency}` : 'Не указана',
+            experience: getTotalExperience(item.experience),
+            skills: item.skills.map(skill => skill.name).join(', '),
+            url: `https://hh.ru/resume/${item.id}`
+        }));
+    }
+
+    function getTotalExperience(experience) {
+        if (!experience || experience.length === 0) return 'Нет опыта';
+        
+        const totalMonths = experience.reduce((sum, exp) => {
+            const start = new Date(exp.start_date);
+            const end = exp.end_date ? new Date(exp.end_date) : new Date();
+            return sum + (end.getMonth() - start.getMonth() + 
+                  (end.getFullYear() - start.getFullYear()) * 12);
+        }, 0);
+        
+        const years = Math.floor(totalMonths / 12);
+        const months = totalMonths % 12;
+        
+        return `${years} г. ${months} мес.`;
+    }
+
+    function displayCandidates(candidates) {
+        let html = '<div class="candidates-list">';
+        
+        candidates.forEach(candidate => {
+            html += `
+                <div class="candidate-card">
+                    <h3>${candidate.name}</h3>
+                    <p>Возраст: ${candidate.age || 'Не указан'}</p>
+                    <p>Опыт работы: ${candidate.experience}</p>
+                    <p>Зарплатные ожидания: ${candidate.salary}</p>
+                    <p>Ключевые навыки: ${candidate.skills || 'Не указаны'}</p>
+                    <a href="${candidate.url}" target="_blank" class="button">Посмотреть резюме</a>
+                    <button class="contact-button" onclick="contactCandidate('${candidate.id}')">Связаться</button>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        candidatesResults.innerHTML = html;
+    }
+
+    window.contactCandidate = function(resumeId) {
+        alert(`Функция связи с кандидатом ${resumeId} будет реализована позже`);
+    };
+});
+    </script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Прохождение теста</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/candidate.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Тест: {{ test.name }}</h1>
+        <div class="user-info">
+            <span class="user-name">
+                {% if current_user %}
+                    {{ current_user['name'] }}
+                {% else %}
+                    Гость
+                {% endif %}
+            </span>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Выйти</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <form id="testForm">
+            {% for question in test.questions %}
+            <div class="question" data-question-id="{{ question.id }}" data-question-type="{{ question.question_type }}">
+                <h3>Вопрос {{ loop.index }} ({{ question.points }} баллов)</h3>
+                <p>{{ question.question_text }}</p>
+                
+                {% if question.question_type == 'text' %}
+                <textarea name="{{ question.id }}" required></textarea>
+                
+                {% elif question.question_type == 'single' %}
+                <div class="options">
+                    {% for option in question.options %}
+                    <label>
+                        <input type="radio" name="{{ question.id }}" value="{{ option }}" required>
+                        {{ option }}
+                    </label>
+                    {% endfor %}
+                </div>
+                
+                {% elif question.question_type == 'multiple' %}
+                <div class="options">
+                    {% for option in question.options %}
+                    <label>
+                        <input type="checkbox" name="{{ question.id }}" value="{{ option }}">
+                        {{ option }}
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            
+            <button type="submit" class="button">Завершить тест</button>
+        </form>
+    </div>
+
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const testForm = document.getElementById('testForm');
+    
+    testForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const answers = {};
+        
+        // Собираем все ответы
+        document.querySelectorAll('.question').forEach(question => {
+            const questionId = question.dataset.questionId;
+            const questionType = question.dataset.questionType;
+            
+            if (questionType === 'text') {
+                answers[questionId] = question.querySelector('textarea').value;
+            } else if (questionType === 'single') {
+                const selected = question.querySelector('input[type="radio"]:checked');
+                answers[questionId] = selected ? selected.value : null;
+            } else if (questionType === 'multiple') {
+                const selected = [];
+                question.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                    selected.push(cb.value);
+                });
+                answers[questionId] = selected;
+            }
+        });
+
+        // Отправка на сервер
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(answers)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = data.redirect_url;
+            } else {
+                alert('Ошибка при сохранении результатов: ' + (data.error || 'Неизвестная ошибка'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Произошла ошибка при отправке теста');
+        });
+    });
+});
+    </script>
+</body>
+</html>

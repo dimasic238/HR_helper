@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты теста</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hr.css') }}">
+    <style>
+        .question-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .correct-answer {
+            color: green;
+            font-weight: bold;
+        }
+        .user-answer {
+            margin-top: 5px;
+            padding: 5px;
+            background-color: #f5f5f5;
+        }
+        .score-input {
+            width: 50px;
+        }
+        .button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Результаты теста: {{ test.name }}</h1>
+        <div class="user-info">
+            <span class="user-name">{{ current_user['name'] }}</span>
+            <a href="{{ url_for('logout') }}" class="button">Выйти</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="test-info">
+            <h2>Кандидат: {{ result.user.surname }} {{ result.user.name }}</h2>
+            <p>Общий балл: <span id="total-score">{{ result.score or 0 }}</span> / {{ result.max_score }}</p>
+            <p>Дата прохождения: {{ result.completed_at.strftime('%d.%m.%Y %H:%M') if result.completed_at else 'Не завершено' }}</p>
+        </div>
+
+        <form id="resultsForm">
+            {% for question in test.questions %}
+            <div class="question-card">
+                <h3>Вопрос {{ loop.index }} ({{ question.points }} баллов)</h3>
+                <p>{{ question.question_text }}</p>
+                
+                {% if question.question_type == 'text' %}
+                <div class="correct-answer">Правильный ответ: текстовый (проверяется вручную)</div>
+                <div class="user-answer">
+                    <strong>Ответ кандидата:</strong>
+                    <p>{{ result.answers.get(question.id|string, 'Нет ответа') }}</p>
+                </div>
+                
+                {% elif question.question_type == 'single' %}
+                <div class="correct-answer">Правильный ответ: {{ question.correct_answer[0] if question.correct_answer else 'Не указан' }}</div>
+                <div class="user-answer">
+                    <strong>Ответ кандидата:</strong>
+                    <p>{{ result.answers.get(question.id|string, 'Нет ответа') }}</p>
+                </div>
+                
+                {% elif question.question_type == 'multiple' %}
+                <div class="correct-answer">Правильные ответы: {{ question.correct_answer|join(', ') if question.correct_answer else 'Не указаны' }}</div>
+                <div class="user-answer">
+                    <strong>Ответ кандидата:</strong>
+                    <p>{{ result.answers.get(question.id|string, ['Нет ответа'])|join(', ') }}</p>
+                </div>
+                {% endif %}
+                
+                <div class="score-control">
+                    <label>Баллы: 
+                        <input type="number" class="score-input" name="{{ question.id }}" 
+                               value="{{ result.get_question_score(question.id) }}" 
+                               min="0" max="{{ question.points }}">
+                        / {{ question.points }}
+                    </label>
+                </div>
+            </div>
+            {% endfor %}
+            
+            <button type="submit" class="button">Сохранить изменения</button>
+            <a href="{{ url_for('hr') }}" class="button">Назад</a>
+        </form>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('resultsForm');
+        
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const scores = {};
+            document.querySelectorAll('.score-input').forEach(input => {
+                scores[input.name] = parseInt(input.value) || 0;
+            });
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(scores)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Изменения сохранены успешно!');
+                    // Обновляем общий балл
+                    const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
+                    document.getElementById('total-score').textContent = totalScore;
+                } else {
+                    alert('Ошибка при сохранении: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка при сохранении изменений');
+            });
+        });
+    });
+    </script>
+</body>
+</html>

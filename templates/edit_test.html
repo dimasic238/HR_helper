@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if test %}Редактирование теста{% else %}Создание теста{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_test.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>{% if test %}Редактирование теста: {{ test.name }}{% else %}Создание нового теста{% endif %}</h1>
+        
+        <form id="testForm">
+            <input type="hidden" id="testId" value="{{ test.id if test else '' }}">
+            
+            <div class="form-group">
+                <label for="testName">Название теста:</label>
+                <input type="text" id="testName" value="{{ test.name if test else '' }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="testDescription">Описание теста:</label>
+                <textarea id="testDescription">{{ test.description if test else '' }}</textarea>
+            </div>
+            
+            <div id="questionsContainer">
+                {% for question in questions %}
+                <div class="question-card" data-index="{{ loop.index0 }}">
+                    <h3>Вопрос {{ loop.index }}</h3>
+                    <button type="button" class="remove-question" onclick="removeQuestion(this)">×</button>
+                    
+                    <div class="form-group">
+                        <label>Текст вопроса:</label>
+                        <input type="text" class="question-text" value="{{ question.question_text }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Тип вопроса:</label>
+                        <select class="question-type" onchange="changeQuestionType(this)">
+                            <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Текстовый ответ</option>
+                            <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Один вариант</option>
+                            <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Несколько вариантов</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Баллы за вопрос:</label>
+                        <input type="number" class="question-points" value="{{ question.points }}" min="1" required>
+                    </div>
+                    
+                    {% if question.question_type in ['single', 'multiple'] %}
+                    <div class="options-container" style="display: block;">
+                        <label>Варианты ответов (каждый с новой строки):</label>
+                        <textarea class="question-options">{% if question.options %}{{ question.options|join('\n') }}{% endif %}</textarea>
+                        
+                        <label>Правильный ответ:</label>
+                        {% if question.question_type == 'single' %}
+                        <select class="correct-answer">
+                            {% for option in question.options %}
+                            <option {% if option in question.correct_answer %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <div class="correct-answers">
+                            {% for option in question.options %}
+                            <label>
+                                <input type="checkbox" {% if option in question.correct_answer %}checked{% endif %}>
+                                {{ option }}
+                            </label><br>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="options-container" style="display: none;"></div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="question-card" data-index="0">
+                    <!-- Шаблон нового вопроса -->
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="button" onclick="addQuestion()">Добавить вопрос</button>
+                <button type="submit" class="button primary">{% if test %}Создать тест{% else %}Создать тест{% endif %}</button>
+                <a href="{{ url_for('hr') }}" class="button">Отмена</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Шаблон для нового вопроса
+        const questionTemplate = `
+            <div class="question-card" data-index="{index}">
+                <h3>Вопрос {questionNum}</h3>
+                <button type="button" class="remove-question" onclick="removeQuestion(this)">×</button>
+                
+                <div class="form-group">
+                    <label>Текст вопроса:</label>
+                    <input type="text" class="question-text" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Тип вопроса:</label>
+                    <select class="question-type" onchange="changeQuestionType(this)">
+                        <option value="text">Текстовый ответ</option>
+                        <option value="single">Один вариант</option>
+                        <option value="multiple">Несколько вариантов</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Баллы за вопрос:</label>
+                    <input type="number" class="question-points" value="1" min="1" required>
+                </div>
+                
+                <div class="options-container" style="display: none;">
+                    <label>Варианты ответов (каждый с новой строки):</label>
+                    <textarea class="question-options"></textarea>
+                    <div class="correct-answer-container" style="display: none;">
+                        <label>Правильный ответ:</label>
+                        <div class="correct-answer-fields"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Добавление нового вопроса
+        function addQuestion() {
+            const container = $('#questionsContainer');
+            const index = container.children().length;
+            
+            const newQuestion = questionTemplate
+                .replace(/{index}/g, index)
+                .replace(/{questionNum}/g, index + 1);
+            
+            container.append(newQuestion);
+        }
+        
+        // Удаление вопроса
+        function removeQuestion(button) {
+            if ($('#questionsContainer').children().length > 1) {
+                $(button).closest('.question-card').remove();
+                updateQuestionNumbers();
+            } else {
+                alert('Тест должен содержать хотя бы один вопрос');
+            }
+        }
+        
+        // Обновление номеров вопросов
+        function updateQuestionNumbers() {
+            $('#questionsContainer .question-card').each(function(index) {
+                $(this).attr('data-index', index);
+                $(this).find('h3').text('Вопрос ' + (index + 1));
+            });
+        }
+        
+        // Изменение типа вопроса
+        function changeQuestionType(select) {
+    const card = $(select).closest('.question-card');
+    const optionsContainer = card.find('.options-container');
+    
+    if (select.value === 'text') {
+        optionsContainer.hide().html('');
+    } else {
+        optionsContainer.show().html(`
+            <label>Варианты ответов (каждый с новой строки):</label>
+            <textarea class="question-options"></textarea>
+            <div class="correct-answer-fields" style="margin-top: 10px;"></div>
+        `);
+        
+        // Добавляем обработчик изменения текста вариантов
+        card.find('.question-options').on('input', function() {
+            updateAnswerOptions(card, select.value, $(this).val());
+        });
+    }
+}
+        
+        // Обновление полей правильных ответов при изменении вариантов
+        $(document).on('input', '.question-options', function() {
+            const card = $(this).closest('.question-card');
+            const type = card.find('.question-type').val();
+            const optionsText = $(this).val();
+            updateAnswerOptions(card, type, optionsText);
+        });
+        
+        // Функция для обновления вариантов ответов
+        function updateAnswerOptions(card, type, optionsText) {
+    const options = optionsText.split('\n').filter(opt => opt.trim() !== '');
+    const answerFields = card.find('.correct-answer-fields');
+    
+    if (options.length < 2) {
+        answerFields.html('<p class="error">Добавьте минимум 2 варианта ответа</p>');
+        return;
+    }
+    
+    if (type === 'single') {
+        answerFields.html(`
+            <label>Правильный ответ:</label>
+            <select class="correct-answer" required>
+                ${options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+            </select>
+        `);
+    } else if (type === 'multiple') {
+        answerFields.html(`
+            <label>Правильные ответы:</label>
+            <div class="correct-answers">
+                ${options.map(opt => `
+                    <label>
+                        <input type="checkbox" value="${opt}">
+                        ${opt}
+                    </label><br>
+                `).join('')}
+            </div>
+        `);
+    }
+}
+        
+        // Отправка формы
+        $('#testForm').submit(function(e) {
+            e.preventDefault();
+            
+            const testId = $('#testId').val();
+            const testName = $('#testName').val();
+            const testDescription = $('#testDescription').val();
+            const questions = [];
+            
+            // Собираем данные вопросов
+            $('.question-card').each(function() {
+                const type = $(this).find('.question-type').val();
+                const question = {
+                    text: $(this).find('.question-text').val(),
+                    type: type,
+                    points: parseInt($(this).find('.question-points').val())
+                };
+                
+                if (type !== 'text') {
+                    const optionsText = $(this).find('.question-options').val();
+                    question.options = optionsText.split('\n').filter(opt => opt.trim() !== '');
+                    
+                    if (type === 'single') {
+                        question.correct_answer = [$(this).find('.correct-answer').val()];
+                    } else if (type === 'multiple') {
+                        const correct = [];
+                        $(this).find('.correct-answers input:checked').each(function() {
+                            correct.push($(this).val());
+                        });
+                        question.correct_answer = correct;
+                    }
+                }
+                
+                questions.push(question);
+            });
+            
+            // Проверка данных
+            const hasErrors = questions.some(q => {
+                if (q.type !== 'text') {
+                    if (!q.options || q.options.length < 2) {
+                        return true;
+                    }
+                    if (q.type === 'single' && !q.correct_answer[0]) {
+                        return true;
+                    }
+                    if (q.type === 'multiple' && (!q.correct_answer || q.correct_answer.length === 0)) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            
+            if (hasErrors) {
+                alert('Вопросы с вариантами ответов должны содержать:\n- минимум 2 варианта\n- выбранный правильный ответ');
+                return;
+            }
+            
+            // Отправка на сервер
+            $.ajax({
+                url: "{{ url_for('edit_test') }}",
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    test_id: testId,
+                    test_name: testName,
+                    test_description: testDescription,
+                    questions: questions
+                }),
+                success: function(data) {
+                    if (data.success) {
+                        alert('Тест успешно {% if test %}обновлен{% else %}создан{% endif %}!');
+                        window.location.href = "{{ url_for('hr') }}";
+                    } else {
+                        alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                    }
+                },
+                error: function(xhr) {
+                    alert('Произошла ошибка при сохранении теста');
+                    console.error(xhr.responseText);
+                }
+            });
+        });
+        
+        // Инициализация формы
+        $(document).ready(function() {
+            // Если это новый тест и нет вопросов, добавляем один вопрос
+            if ($('.question-card').length === 0) {
+                addQuestion();
+            }
+            
+            // Инициализация существующих вопросов при редактировании
+            $('.question-card').each(function() {
+                const type = $(this).find('.question-type').val();
+                if (type !== 'text') {
+                    const optionsText = $(this).find('.question-options').val();
+                    if (optionsText) {
+                        updateAnswerOptions($(this), type, optionsText);
+                    }
+                }
+            });
+        });
+        </script>
+</body>
+</html>

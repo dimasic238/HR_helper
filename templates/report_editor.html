@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактор отчетов</title>
+    <style>
+        /* Основные стили */
+        :root {
+            --primary-color: #4285f4;
+            --secondary-color: #34a853;
+            --accent-color: #ea4335;
+            --light-gray: #f8f9fa;
+            --medium-gray: #e9ecef;
+            --dark-gray: #495057;
+            --text-color: #212529;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--light-gray);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        
+        .editor-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            background: white;
+            padding: 25px;
+            box-shadow: var(--box-shadow);
+            border-radius: var(--border-radius);
+        }
+        
+        .report-title {
+            width: 100%;
+            padding: 12px 15px;
+            font-size: 1.25rem;
+            margin-bottom: 20px;
+            border: 2px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            transition: border-color 0.3s ease;
+        }
+        
+        .report-title:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--medium-gray);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .toolbar button {
+            padding: 8px 14px;
+            background: white;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .toolbar button:hover {
+            background: var(--light-gray);
+            transform: translateY(-1px);
+        }
+        
+        .toolbar button.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .toolbar select {
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--medium-gray);
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        
+        .text-editor {
+            min-height: 500px;
+            border: 1px solid var(--medium-gray);
+            padding: 20px;
+            line-height: 1.8;
+            outline: none;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius);
+            background: white;
+        }
+        
+        .export-buttons {
+            margin-top: 25px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .export-btn {
+            padding: 12px 24px;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .export-btn:hover {
+            background: #2d9247;
+            transform: translateY(-1px);
+            box-shadow: var(--box-shadow);
+        }
+        
+        /* Стили для таблиц */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            display: block;
+        }
+        
+        thead {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border: 1px solid var(--medium-gray);
+        }
+        
+        th {
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        
+        tbody tr:nth-child(even) {
+            background-color: var(--light-gray);
+        }
+        
+        tbody tr:hover {
+            background-color: rgba(66, 133, 244, 0.1);
+        }
+        
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(3px);
+            overflow-y: auto;
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            animation: modalFadeIn 0.3s ease;
+        }
+        
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .close {
+            color: var(--dark-gray);
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        
+        .close:hover {
+            color: var(--accent-color);
+        }
+        
+        /* Формы */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-gray);
+        }
+        
+        .form-group input, 
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus, 
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+        }
+        
+        /* Список кандидатов */
+        .candidate-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            padding: 0;
+            background: white;
+        }
+        
+        .candidate-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--medium-gray);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .candidate-item:last-child {
+            border-bottom: none;
+        }
+        
+        .candidate-item:hover {
+            background-color: rgba(66, 133, 244, 0.05);
+        }
+        
+        .candidate-item.selected {
+            background-color: rgba(52, 168, 83, 0.1);
+            border-left: 3px solid var(--secondary-color);
+        }
+        
+        /* Критерии */
+        .criteria-input {
+            margin-top: 10px;
+        }
+        
+        .add-criteria-btn {
+            margin-top: 10px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .add-criteria-btn:hover {
+            background: #3367d6;
+            transform: translateY(-1px);
+        }
+        
+        .criteria-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        
+        .criteria-item input {
+            flex-grow: 1;
+            padding: 10px 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+        }
+        
+        .remove-criteria {
+            color: var(--accent-color);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: transform 0.2s ease;
+        }
+        
+        .remove-criteria:hover {
+            transform: scale(1.2);
+        }
+        
+        /* Секция сравнения */
+        .comparison-section {
+            margin: 25px 0;
+            border: 1px solid var(--medium-gray);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            background: white;
+            box-shadow: var(--box-shadow);
+        }
+        
+        .comparison-section h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .conclusion {
+            margin-top: 20px;
+            padding: 15px;
+            border-top: 1px solid var(--medium-gray);
+            background: rgba(66, 133, 244, 0.05);
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+        }
+        
+        /* Адаптация для мобильных устройств */
+        @media (max-width: 768px) {
+            .editor-container {
+                padding: 15px;
+                margin: 10px auto;
+            }
+            
+            .toolbar {
+                gap: 6px;
+            }
+            
+            .toolbar button, .toolbar select {
+                padding: 6px 10px;
+                font-size: 0.9rem;
+            }
+            
+            .text-editor {
+                padding: 15px;
+                min-height: 400px;
+            }
+            
+            .export-buttons {
+                justify-content: center;
+            }
+            
+            .export-btn {
+                padding: 10px 15px;
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .modal-content {
+                margin: 10% auto;
+                padding: 20px 15px;
+                width: 95%;
+            }
+            
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            
+            th, td {
+                padding: 8px 10px;
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .report-title {
+                font-size: 1.1rem;
+                padding: 10px;
+            }
+            
+            .toolbar {
+                justify-content: center;
+            }
+            
+            .comparison-section {
+                padding: 15px 10px;
+            }
+            
+            .candidate-item {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <input type="text" id="reportTitle" class="report-title" placeholder="Введите название отчета">
+        
+        <div class="toolbar">
+            <button id="boldBtn" title="Жирный">B</button>
+            <button id="italicBtn" title="Курсив">I</button>
+            <button id="underlineBtn" title="Подчеркивание">U</button>
+            <select id="fontSize">
+                <option value="">Размер</option>
+                <option value="8px">8</option>
+                <option value="10px">10</option>
+                <option value="12px" selected>12</option>
+                <option value="14px">14</option>
+                <option value="16px">16</option>
+                <option value="18px">18</option>
+                <option value="20px">20</option>
+                <option value="24px">24</option>
+                <option value="28px">28</option>
+                <option value="32px">32</option>
+            </select>
+            <button id="insertTableBtn" title="Добавить таблицу">Таблица</button>
+            <button id="compareCandidatesBtn" title="Сравнить кандидатов">Сравнить кандидатов</button>
+            <button id="addCriteriaBtn" class="add-criteria-btn" style="display: none;">Добавить критерий</button>
+        </div>
+        
+        <div id="editor" contenteditable="true" class="text-editor"></div>
+        
+        <div class="export-buttons">
+            <button id="saveReportBtn" class="export-btn">Сохранить отчет</button>
+            <button id="exportWord" class="export-btn">Сохранить как Word</button>
+            <button id="exportPdf" class="export-btn">Сохранить как PDF</button>
+        </div>
+        
+        <!-- Модальное окно для таблицы -->
+        <div id="tableModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3>Создать таблицу</h3>
+                <div class="form-group">
+                    <label>Строки:</label>
+                    <input type="number" id="rows" min="1" value="3">
+                </div>
+                <div class="form-group">
+                    <label>Колонки:</label>
+                    <input type="number" id="cols" min="1" value="3">
+                </div>
+                <button id="insertTableConfirm">Добавить</button>
+            </div>
+        </div>
+        
+        <!-- Модальное окно для сравнения кандидатов -->
+        <div id="compareModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3>Сравнение кандидатов</h3>
+                
+                <div class="form-group">
+                    <label>Выберите кандидатов:</label>
+                    <div class="candidate-list" id="candidateList">
+                        <div class="loading">Загрузка кандидатов...</div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Критерии для сравнения:</label>
+                    <div id="criteriaContainer">
+                        <div class="criteria-item">
+                            <input type="text" class="criteria-input" placeholder="Название критерия">
+                            <span class="remove-criteria">✕</span>
+                        </div>
+                    </div>
+                    <button id="addCriteriaModalBtn" class="add-criteria-btn">Добавить критерий</button>
+                </div>
+                
+                <button id="compareConfirm">Вставить таблицу сравнения</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Элементы интерфейса
+            const editor = document.getElementById('editor');
+            const reportTitle = document.getElementById('reportTitle');
+            const boldBtn = document.getElementById('boldBtn');
+            const italicBtn = document.getElementById('italicBtn');
+            const underlineBtn = document.getElementById('underlineBtn');
+            const fontSizeSelect = document.getElementById('fontSize');
+            const insertTableBtn = document.getElementById('insertTableBtn');
+            const compareCandidatesBtn = document.getElementById('compareCandidatesBtn');
+            const saveReportBtn = document.getElementById('saveReportBtn');
+            const exportWord = document.getElementById('exportWord');
+            const exportPdf = document.getElementById('exportPdf');
+            const addCriteriaBtn = document.getElementById('addCriteriaBtn');
+            
+            // Модальные окна
+            const tableModal = document.getElementById('tableModal');
+            const compareModal = document.getElementById('compareModal');
+            const closeButtons = document.querySelectorAll('.close');
+            
+            // Текущая секция сравнения
+            let currentComparisonSection = null;
+            
+            // Обновление состояния кнопок форматирования
+            function updateButtonStates() {
+                boldBtn.classList.toggle('active', document.queryCommandState('bold'));
+                italicBtn.classList.toggle('active', document.queryCommandState('italic'));
+                underlineBtn.classList.toggle('active', document.queryCommandState('underline'));
+            }
+            
+            // Форматирование текста
+            boldBtn.addEventListener('click', () => {
+                document.execCommand('bold', false, null);
+                updateButtonStates();
+            });
+            
+            italicBtn.addEventListener('click', () => {
+                document.execCommand('italic', false, null);
+                updateButtonStates();
+            });
+            
+            underlineBtn.addEventListener('click', () => {
+                document.execCommand('underline', false, null);
+                updateButtonStates();
+            });
+            
+            // Размер шрифта (исправленная версия)
+            fontSizeSelect.addEventListener('change', function() {
+                const size = this.value;
+                if (size) {
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        const span = document.createElement('span');
+                        span.style.fontSize = size;
+                        
+                        // Если есть выделение, применяем к нему
+                        if (!range.collapsed) {
+                            range.surroundContents(span);
+                        } else {
+                            // Если нет выделения, создаем новый span для следующего ввода
+                            span.innerHTML = '&nbsp;';
+                            range.insertNode(span);
+                            range.setStartAfter(span);
+                            range.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                    }
+                }
+            });
+            
+            // Отслеживаем изменения выделения для обновления кнопок
+            document.addEventListener('selectionchange', updateButtonStates);
+            
+            // Открытие/закрытие модальных окон
+            insertTableBtn.addEventListener('click', () => tableModal.style.display = 'block');
+            compareCandidatesBtn.addEventListener('click', () => {
+                loadCandidates();
+                compareModal.style.display = 'block';
+            });
+            
+            closeButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.closest('.modal').style.display = 'none';
+                });
+            });
+            
+            // Закрытие модальных окон при клике вне их
+            window.addEventListener('click', function(event) {
+                if (event.target.classList.contains('modal')) {
+                    event.target.style.display = 'none';
+                }
+            });
+            
+            // Вставка таблицы
+            document.getElementById('insertTableConfirm').addEventListener('click', function() {
+                const rows = parseInt(document.getElementById('rows').value);
+                const cols = parseInt(document.getElementById('cols').value);
+                
+                let tableHtml = '<table><tbody>';
+                for (let i = 0; i < rows; i++) {
+                    tableHtml += '<tr>';
+                    for (let j = 0; j < cols; j++) {
+                        tableHtml += '<td contenteditable="true">Ячейка</td>';
+                    }
+                    tableHtml += '</tr>';
+                }
+                tableHtml += '</tbody></table>';
+                
+                insertHtmlAtCursor(tableHtml);
+                tableModal.style.display = 'none';
+            });
+            
+            // Добавление критериев в модальном окне
+            document.getElementById('addCriteriaModalBtn').addEventListener('click', function() {
+                const criteriaContainer = document.getElementById('criteriaContainer');
+                const newItem = document.createElement('div');
+                newItem.className = 'criteria-item';
+                newItem.innerHTML = `
+                    <input type="text" class="criteria-input" placeholder="Название критерия">
+                    <span class="remove-criteria">✕</span>
+                `;
+                criteriaContainer.appendChild(newItem);
+                
+                // Добавляем обработчик удаления
+                newItem.querySelector('.remove-criteria').addEventListener('click', function() {
+                    if (criteriaContainer.children.length > 1) {
+                        criteriaContainer.removeChild(newItem);
+                    }
+                });
+            });
+            
+            // Удаление критериев в модальном окне
+            document.querySelectorAll('.remove-criteria').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (document.getElementById('criteriaContainer').children.length > 1) {
+                        this.parentNode.remove();
+                    }
+                });
+            });
+            
+            // Сравнение кандидатов
+            document.getElementById('compareConfirm').addEventListener('click', function() {
+                // Получаем выбранных кандидатов
+                const selectedCandidates = Array.from(document.querySelectorAll('.candidate-item.selected'))
+                    .map(el => ({
+                        id: el.dataset.id,
+                        name: el.dataset.name,
+                        email: el.dataset.email,
+                        phone: el.dataset.phone,
+                        status: el.dataset.status
+                    }));
+                
+                // Получаем критерии
+                const criteria = Array.from(document.querySelectorAll('.criteria-input'))
+                    .map(input => input.value.trim())
+                    .filter(c => c);
+                
+                // Проверки
+                if (selectedCandidates.length < 2) {
+                    alert('Выберите хотя бы двух кандидатов для сравнения');
+                    return;
+                }
+                
+                if (criteria.length === 0) {
+                    alert('Укажите хотя бы один критерий для сравнения');
+                    return;
+                }
+                
+                // Создаем HTML для таблицы сравнения
+                const comparisonHtml = generateComparisonTable(selectedCandidates, criteria);
+                
+                // Вставляем HTML в основной редактор
+                insertHtmlAtCursor(comparisonHtml);
+                
+                // Очищаем модальное окно
+                document.querySelectorAll('.candidate-item.selected').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                
+                // Закрываем модальное окно
+                compareModal.style.display = 'none';
+                
+                // Показываем кнопку "Добавить критерий" в основном тулбаре
+                addCriteriaBtn.style.display = 'inline-block';
+                currentComparisonSection = document.querySelector('.comparison-section:last-child');
+            });
+
+            // Функция генерации таблицы сравнения
+            function generateComparisonTable(candidates, criteria) {
+                let html = `
+                    <div class="comparison-section">
+                        <h3>Сравнение кандидатов</h3>
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th>Критерий</th>
+                `;
+                
+                // Добавляем заголовки с именами кандидатов
+                candidates.forEach(cand => {
+                    html += `<th>${cand.name}</th>`;
+                });
+                
+                html += `</tr><tr><td>Контактные данные</td>`;
+                
+                // Добавляем контактные данные
+                candidates.forEach(cand => {
+                    html += `<td>Телефон: ${cand.phone}<br>Email: ${cand.email}<br>Статус: ${cand.status}</td>`;
+                });
+                
+                html += `</tr></thead><tbody>`;
+                
+                // Добавляем строки с критериями
+                criteria.forEach(criterion => {
+                    html += `<tr><td>${criterion}</td>`;
+                    candidates.forEach(() => {
+                        html += `<td contenteditable="true">-</td>`;
+                    });
+                    html += `</tr>`;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                        <div class="conclusion" contenteditable="true">Вывод после сравнения кандидатов:</div>
+                    </div>
+                    <p><br></p>
+                `;
+                
+                return html;
+            }
+            
+            // Добавление критерия через кнопку в тулбаре
+            addCriteriaBtn.addEventListener('click', function() {
+                const comparisonSection = document.querySelector('.comparison-section:last-child');
+                if (!comparisonSection) {
+                    alert('Нет таблицы сравнения для добавления критерия');
+                    return;
+                }
+                
+                const table = comparisonSection.querySelector('table tbody');
+                const candidatesCount = comparisonSection.querySelector('thead tr').cells.length - 1;
+                
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = '<td contenteditable="true">Новый критерий</td>';
+                
+                for (let i = 0; i < candidatesCount; i++) {
+                    newRow.innerHTML += '<td contenteditable="true">-</td>';
+                }
+                
+                table.appendChild(newRow);
+            });
+            
+            // Сохранение отчета
+            saveReportBtn.addEventListener('click', function() {
+                const title = reportTitle.value.trim();
+                const content = editor.innerHTML;
+                
+                if (!title) {
+                    alert('Введите название отчета');
+                    return;
+                }
+                
+                // Отправка данных на сервер
+                fetch('/api/save_report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        content: content
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Отчет успешно сохранен');
+                    } else {
+                        alert('Ошибка при сохранении отчета: ' + (data.error || 'Неизвестная ошибка'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Произошла ошибка при сохранении отчета');
+                });
+            });
+            
+            // Экспорт в Word
+            exportWord.addEventListener('click', function() {
+                const title = reportTitle.value.trim() || 'Отчет';
+                const content = editor.innerHTML;
+                
+                // Создаем HTML документ
+                const html = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>${title}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; }
+                            table { border-collapse: collapse; width: 100%; }
+                            table, th, td { border: 1px solid #ddd; }
+                            th, td { padding: 8px; text-align: left; }
+                            .comparison-section { margin-bottom: 20px; }
+                            .conclusion { margin-top: 15px; padding: 10px; border-top: 1px solid #ddd; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${title}</h1>
+                        ${content}
+                    </body>
+                    </html>
+                `;
+                
+                // Создаем Blob и скачиваем
+                const blob = new Blob([html], { type: 'application/msword' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${title}.doc`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+            
+            // Экспорт в PDF
+            exportPdf.addEventListener('click', function() {
+                const title = reportTitle.value.trim() || 'Отчет';
+                // Используем html2pdf.js для более качественного PDF
+                const opt = {
+                    margin: 10,
+                    filename: `${title}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                
+                // Создаем копию содержимого
+                const content = document.createElement('div');
+                content.innerHTML = `
+                    <h1>${title}</h1>
+                    ${editor.innerHTML}
+                `;
+                
+                // Удаляем атрибуты contenteditable
+                content.querySelectorAll('[contenteditable]').forEach(el => {
+                    el.removeAttribute('contenteditable');
+                });
+                
+                // Используем html2pdf.js если доступен
+                if (typeof html2pdf !== 'undefined') {
+                    html2pdf().from(content).set(opt).save();
+                } else {
+                    alert('Библиотека html2pdf не загружена. PDF может быть неполным.');
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    doc.text(content.innerText, 10, 10);
+                    doc.save(`${title}.pdf`);
+                }
+            });
+            
+            // Загрузка списка кандидатов с сервера
+            function loadCandidates() {
+                const candidateList = document.getElementById('candidateList');
+                candidateList.innerHTML = '<div class="loading">Загрузка кандидатов...</div>';
+                
+                // AJAX запрос к серверу для получения кандидатов текущего HR
+                fetch('/api/hr_candidates')
+                    .then(response => response.json())
+                    .then(candidates => {
+                        candidateList.innerHTML = '';
+                        
+                        if (candidates.length === 0) {
+                            candidateList.innerHTML = '<div class="no-candidates">Нет доступных кандидатов</div>';
+                            return;
+                        }
+                        
+                        candidates.forEach(cand => {
+                            const item = document.createElement('div');
+                            item.className = 'candidate-item';
+                            item.dataset.id = cand.id;
+                            item.dataset.name = cand.name;
+                            item.dataset.email = cand.email;
+                            item.dataset.phone = cand.phone;
+                            item.dataset.status = cand.status;
+                            item.textContent = cand.name;
+                            
+                            item.addEventListener('click', function() {
+                                this.classList.toggle('selected');
+                            });
+                            
+                            candidateList.appendChild(item);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Ошибка загрузки кандидатов:', error);
+                        candidateList.innerHTML = '<div class="error">Ошибка загрузки кандидатов</div>';
+                    });
+            }
+            
+            // Вспомогательная функция для вставки HTML в текущую позицию курсора
+            function insertHtmlAtCursor(html) {
+                const selection = window.getSelection();
+                
+                // Если есть выделение, вставляем в позицию курсора
+                if (selection.rangeCount > 0 && !selection.isCollapsed) {
+                    const range = selection.getRangeAt(0);
+                    range.deleteContents();
+                    
+                    const div = document.createElement('div');
+                    div.innerHTML = html;
+                    
+                    const frag = document.createDocumentFragment();
+                    while (div.firstChild) {
+                        frag.appendChild(div.firstChild);
+                    }
+                    
+                    range.insertNode(frag);
+                    
+                    // Устанавливаем курсор после вставленного содержимого
+                    const newRange = document.createRange();
+                    newRange.setStartAfter(frag.lastChild);
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                } else {
+                    // Если нет выделения, добавляем в конец редактора
+                    editor.insertAdjacentHTML('beforeend', html);
+                    
+                    // Прокручиваем к новому содержимому
+                    editor.scrollTop = editor.scrollHeight;
+                }
+                
+                // Фокусируем редактор
+                editor.focus();
+            }
+        });
+    </script>
+    
+    <!-- Подключаем библиотеки для экспорта -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!-- 
+Возможно нахрен не нужен 
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Результаты тестов кандидатов</title>
+</head>
+<body>
+    <h1>Результаты тестов кандидатов</h1>
+    Возможно нахрен не нужен 
+    <table>
+        <thead>
+            <tr>
+                <th>Кандидат</th>               Возможно нахрен не нужен 
+                <th>Тест</th>
+                <th>Результат</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for assignment in assignments %}
+                {% for result in assignment.results %}
+                <tr>
+                    <td>{{ assignment.candidate.user.surname }} {{ assignment.candidate.user.name }}</td>     Возможно нахрен не нужен 
+                    <td>{{ assignment.test.name }}</td>
+                    <td>{{ result.score }} / {{ result.max_score }}</td>
+                    <td>                Возможно нахрен не нужен  
+                        <a href="{{ url_for('edit_test_result', result_id=result.id) }}" class="button">              Возможно нахрен не нужен 
+                            Редактировать баллы
+                        </a>
+                    </td>
+                </tr>ф
+                {% endfor %}                                       Возможно нахрен не нужен 
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+Возможно нахрен не нужен  -->

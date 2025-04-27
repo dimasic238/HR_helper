@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Портал кандидата</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/candidate.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Портал кандидата</h1>
+        <div class="user-info">
+            <span class="user-name">{{ current_user.name }}</span>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Выйти</a>
+        </div>
+    </header>
+
+    <nav>
+        <a href="#tests">Тестирование</a>
+        {% if hr_contact %}
+            <a href="#contacts">Контакты HR</a>
+        {% endif %}
+        <a href="#position-info">Информация о специальности</a>
+    </nav>
+
+    <div class="container">
+        <section id="tests" class="section">
+            <h2>Мои тесты</h2>
+            {% if assigned_tests %}
+            <table class="test-table">
+                <thead>
+                    <tr>
+                        <th>Название</th>
+                        <th>Статус</th>
+                        <th>Результат</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assignment in assigned_tests %}
+                    <tr>
+                        <td>{{ assignment.test.name }}</td>
+                        <td>
+                            {% if assignment.completed %}
+                            <span class="completed">Пройден</span>
+                            {% else %}
+                            <span class="pending">Ожидает выполнения</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assignment.completed and assignment.results %}
+                            {{ assignment.results.score }} / {{ assignment.results.max_score }}
+                            {% else %}
+                            <a href="{{ url_for('take_test', assignment_id=assignment.id) }}" class="take-test-btn">Пройти тест</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>У вас нет назначенных тестов</p>
+            {% endif %}
+        </section>
+        
+        <style>
+            .completed {
+                color: green;
+                font-weight: bold;
+            }
+            .pending {
+                color: orange;
+            }
+            .test-table {
+                width: 100%;
+                margin-top: 20px;
+            }
+        </style>
+
+        {% if hr_contact %}
+        <section id="contacts" class="section">
+            <h2>Контакты HR</h2>
+            <div class="hr-info">
+                <p><strong>Имя HR:</strong> {{ hr_contact.name }}</p>
+                <p><strong>Email:</strong> {{ hr_contact.email }}</p>
+                <p><strong>Телефон:</strong> {{ hr_contact.phone }}</p>
+            </div>
+        </section>
+        {% endif %}
+
+        <section id="speciality" class="section">
+            <h2>Информация о специальности</h2>
+            <div class="position-info">
+                <h3>Информация о вакансии</h3>
+                <p>Вы участвуете в отборе на позицию кандидата.</p>
+                {% if hr_contact %}
+                <p>Ваш HR-менеджер: {{ hr_contact.name }}</p>
+                <p>Контакты: {{ hr_contact.phone }} | {{ hr_contact.email }}</p>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; {{ current_year }} Портал кандидата. Все права защищены.</p>
+    </footer>
+</body>
+</html>

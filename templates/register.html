@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/register.css') }}">
+    <script>
+        function toggleHrField() {
+            const userType = document.querySelector('input[name="user_type"]:checked').value;
+            const hrField = document.getElementById('hr-phone-field');
+            
+            if (userType === 'hr') {
+                hrField.style.display = 'none';
+            } else {
+                hrField.style.display = 'block';
+            }
+        }
+
+        function validateForm() {
+            const userType = document.querySelector('input[name="user_type"]:checked').value;
+            const surname = document.getElementById('surname').value;
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const password = document.getElementById('password').value;
+            const hrPhone = document.getElementById('hr-phone')?.value;
+            
+            if (!surname || !name) {
+                alert('Фамилия и имя обязательны для заполнения');
+                return false;
+            }
+            
+            if (!email.includes('@')) {
+                alert('Введите корректный email');
+                return false;
+            }
+            
+            if (phone.length < 10) {
+                alert('Номер телефона слишком короткий');
+                return false;
+            }
+            
+            if (password.length < 6) {
+                alert('Пароль должен содержать минимум 6 символов');
+                return false;
+            }
+            
+            if (userType === 'candidate' && (!hrPhone || hrPhone.length < 10)) {
+                alert('Введите корректный номер телефона HR');
+                return false;
+            }
+            
+            return true;
+        }
+    </script>
+</head>
+<body>
+    <div class="registration-container">
+        <h1>Регистрация</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form class="registration-form" method="POST" action="{{ url_for('register') }}" enctype="multipart/form-data" onsubmit="return validateForm()">
+            <div class="user-type">
+                <label>
+                    <input type="radio" name="user_type" value="candidate" checked onclick="toggleHrField()"> Кандидат
+                </label>
+                <label>
+                    <input type="radio" name="user_type" value="hr" onclick="toggleHrField()"> HR
+                </label>
+            </div>
+            
+            <div class="input-group">
+                <label for="surname">Фамилия:</label>
+                <input type="text" id="surname" name="surname" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="name">Имя:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="patronymic">Отчество:</label>
+                <input type="text" id="patronymic" name="patronymic">
+            </div>
+            
+            <div class="input-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="phone">Номер телефона:</label>
+                <input type="tel" id="phone" name="phone" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="password">Пароль:</label>
+                <input type="password" id="password" name="password" required minlength="6">
+            </div>
+            
+            <div class="input-group">
+                <label for="photo">Фотография:</label>
+                <input type="file" id="photo" name="photo" accept="image/*">
+            </div>
+            
+            <div class="input-group" id="hr-phone-field">
+                <label for="hr-phone">Номер телефона HR:</label>
+                <input type="tel" id="hr-phone" name="hr_phone" list="hr-phones">
+                <datalist id="hr-phones">
+                    {% for hr in hr_users %}
+                        <option value="{{ hr.phone }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <button type="submit" class="register-button">Зарегистрироваться</button>
+        </form>
+    </div>
+
+    <script>
+        // Обновляем скрытое поле при изменении выбора
+        document.querySelectorAll('input[name="user_type"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                toggleHrField();
+            });
+        });
+        
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', toggleHrField);
+    </script>
+</body>
+</html>
