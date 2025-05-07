@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Портал кандидата</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/candidate.css') }}">
+    <style>
+       
+    </style>
 </head>
 <body>
     <header>
@@ -16,6 +19,7 @@
     </header>
 
     <nav>
+        <a href="#resume">Мое резюме</a>
         <a href="#tests">Тестирование</a>
         {% if hr_contact %}
             <a href="#contacts">Контакты HR</a>
@@ -24,6 +28,41 @@
     </nav>
 
     <div class="container">
+        <!-- Новая секция для резюме -->
+        <section id="resume" class="section resume-section">
+            <h2>Мое резюме</h2>
+            <div class="resume-status">
+                {% if current_user.candidate_profile and current_user.candidate_profile.resume_filename %}
+                    <div class="resume-status-icon uploaded"></div>
+                    <span>Резюме загружено: {{ current_user.candidate_profile.resume_filename }}</span>
+                {% else %}
+                    <div class="resume-status-icon not-uploaded"></div>
+                    <span>Резюме не загружено</span>
+                {% endif %}
+            </div>
+            
+            <div class="resume-upload">
+                {% if current_user.candidate_profile and current_user.candidate_profile.resume_filename %}
+                    <a href="{{ url_for('download_resume', candidate_id=current_user.candidate_profile.id) }}" 
+                       class="button primary">Скачать резюме</a>
+                    <button onclick="toggleUploadForm()" class="button secondary">Заменить резюме</button>
+                {% else %}
+                    <button onclick="toggleUploadForm()" class="button primary">Загрузить резюме</button>
+                {% endif %}
+                
+                <div id="uploadForm" class="upload-form">
+                    <form id="resumeForm" enctype="multipart/form-data">
+                        <div class="file-input-wrapper">
+                            <input type="file" name="resume" id="resumeFile" 
+                                   accept=".pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+                        </div>
+                        <button type="submit" class="button primary">Сохранить</button>
+                        <button type="button" onclick="toggleUploadForm()" class="button">Отмена</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
         <section id="tests" class="section">
             <h2>Мои тесты</h2>
             {% if assigned_tests %}
@@ -61,20 +100,6 @@
             <p>У вас нет назначенных тестов</p>
             {% endif %}
         </section>
-        
-        <style>
-            .completed {
-                color: green;
-                font-weight: bold;
-            }
-            .pending {
-                color: orange;
-            }
-            .test-table {
-                width: 100%;
-                margin-top: 20px;
-            }
-        </style>
 
         {% if hr_contact %}
         <section id="contacts" class="section">
@@ -87,7 +112,7 @@
         </section>
         {% endif %}
 
-        <section id="speciality" class="section">
+        <section id="position-info" class="section">
             <h2>Информация о специальности</h2>
             <div class="position-info">
                 <h3>Информация о вакансии</h3>
@@ -103,5 +128,49 @@
     <footer>
         <p>&copy; {{ current_year }} Портал кандидата. Все права защищены.</p>
     </footer>
+
+    <script>
+        // Функция для показа/скрытия формы загрузки
+        function toggleUploadForm() {
+            const form = document.getElementById('uploadForm');
+            form.classList.toggle('active');
+        }
+        
+        // Обработка отправки формы резюме
+        document.getElementById('resumeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    const fileInput = document.getElementById('resumeFile');
+    
+    if (fileInput.files.length === 0) {
+        alert('Пожалуйста, выберите файл');
+        return;
+    }
+    
+    formData.append('resume', fileInput.files[0]);
+    
+    fetch('/candidates/{{ current_user.candidate_profile.id }}/upload_resume', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.error || 'Ошибка загрузки файла') });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            alert('Резюме успешно загружено!');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при загрузке файла: ' + error.message);
+    });
+});
+    </script>
 </body>
 </html>

@@ -6,7 +6,7 @@
     <title>Мои карты</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/maps.css') }}">
     <style>
-        /* Стили для модального окна */
+        /* Стили для модальных окон */
         .modal {
             display: none;
             position: fixed;
@@ -48,6 +48,24 @@
             background: #f5f5f5;
             border-radius: 4px;
         }
+        
+        /* Стили для формы загрузки карты */
+        .upload-map-form {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .upload-map-form.active {
+            display: block;
+        }
+        .map-preview img {
+            max-width: 100%;
+            max-height: 300px;
+            display: block;
+            margin: 10px auto;
+        }
     </style>
 </head>
 <body>
@@ -56,7 +74,28 @@
         
         <div class="actions">
             <a href="{{ url_for('create_map') }}" class="button primary">Создать новую карту</a>
+            <button id="uploadMapBtn" class="button primary">Загрузить карту</button>
             <a href="{{ url_for('hr') }}" class="button">Выйти</a>
+        </div>
+        
+        <!-- Форма для загрузки карты -->
+        <div id="uploadMapForm" class="upload-map-form">
+            <h3>Загрузка карты офиса</h3>
+            <form id="mapUploadForm" enctype="multipart/form-data">
+                <div>
+                    <label for="mapName">Название карты:</label>
+                    <input type="text" id="mapName" name="mapName" required>
+                </div>
+                <div>
+                    <label for="mapImage">Файл карты (изображение):</label>
+                    <input type="file" id="mapImage" name="mapImage" accept="image/*" required>
+                </div>
+                <div class="map-preview">
+                    <img id="mapPreview" src="#" alt="Предпросмотр карты" style="display: none;">
+                </div>
+                <button type="submit" class="button primary">Сохранить карту</button>
+                <button type="button" id="cancelUpload" class="button">Отмена</button>
+            </form>
         </div>
         
         <div class="maps-grid">
@@ -185,9 +224,9 @@
                     }
                 });
             });
-        });
-          // Удаление карты
-          $(document).on('click', '.delete-map', function(e) {
+            
+            // Удаление карты
+            $(document).on('click', '.delete-map', function(e) {
                 e.preventDefault();
                 const mapId = $(this).data('map-id');
                 if (confirm('Вы уверены, что хотите удалить эту карту?')) {
@@ -207,6 +246,58 @@
                     });
                 }
             });
-        </script>
+            
+            // Показ/скрытие формы загрузки карты
+            $('#uploadMapBtn').on('click', function() {
+                $('#uploadMapForm').toggleClass('active');
+            });
+            
+            $('#cancelUpload').on('click', function() {
+                $('#uploadMapForm').removeClass('active');
+                $('#mapUploadForm')[0].reset();
+                $('#mapPreview').hide();
+            });
+            
+            // Предпросмотр изображения перед загрузкой
+            $('#mapImage').on('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        $('#mapPreview').attr('src', event.target.result).show();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // Отправка формы загрузки карты
+            $('#mapUploadForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData();
+                formData.append('name', $('#mapName').val());
+                formData.append('image', $('#mapImage')[0].files[0]);
+                
+                $.ajax({
+                    url: '/upload_map',
+                    method: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        if (response.success) {
+                            alert('Карта успешно загружена!');
+                            location.reload();
+                        } else {
+                            alert('Ошибка: ' + (response.error || 'Неизвестная ошибка'));
+                        }
+                    },
+                    error: function(xhr) {
+                        alert('Ошибка загрузки карты: ' + xhr.responseText);
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

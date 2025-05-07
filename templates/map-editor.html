@@ -6,199 +6,227 @@
     <title>Редактор карт</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        * {
+        /* Базовые стили */
+        body {
+            font-family: 'Poppins', sans-serif;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Poppins', sans-serif;
+            background-color: #f4f4f4;
         }
-
-        body {
-            background: #f5f5f5;
-            padding: 20px;
-        }
-
+        
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 20px;
         }
-
+        
         h1 {
-            color: #333;
+            color: #2c3e50;
             margin-bottom: 20px;
-            text-align: center;
         }
-
+        
+        /* Макет редактора */
         .editor-container {
             display: flex;
-            width: 100%;
-            gap: 15px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 15px;
+            gap: 20px;
         }
-
+        
         .tools-board {
             width: 250px;
+            background: white;
             padding: 15px;
-            border-right: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-
+        
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
-
+        
         .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             font-weight: 500;
-            color: #555;
         }
-
+        
         .form-group input[type="text"] {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            font-size: 14px;
         }
-
-        .row {
-            margin-bottom: 20px;
+        
+        /* Стили для кнопки загрузки */
+        .upload-container {
+            margin-bottom: 15px;
         }
-
-        .row .title {
-            font-size: 16px;
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 10px;
-            display: block;
-        }
-
-        .row .options {
-            list-style: none;
-            margin: 10px 0 0 5px;
-        }
-
-        .row .options .option {
-            display: flex;
-            cursor: pointer;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .option:is(:hover, .active) img {
-            filter: invert(17%) sepia(90%) saturate(3000%) hue-rotate(900deg) brightness(100%) contrast(100%);
-        }
-
-        .option :where(span, label) {
-            color: #5A6168;
-            cursor: pointer;
-            padding-left: 10px;
-        }
-
-        .option:is(:hover, .active) :where(span, label) {
-            color: #4A98F7;
-        }
-
-        .option #fill-color {
-            cursor: pointer;
-            height: 14px;
-            width: 14px;
-        }
-
-        #fill-color:checked ~ label {
-            color: #4A98F7;
-        }
-
-        .option #size-slider {
-            width: 100%;
-            height: 5px;
-            margin-top: 10px;
-        }
-
-        .colors .options {
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-
-        .colors .option {
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            margin-top: 3px;
+        
+        .upload-btn-wrapper {
             position: relative;
-            cursor: pointer;
-        }
-
-        .colors .option.selected::before {
-            position: absolute;
-            content: "";
-            top: 50%;
-            left: 50%;
-            height: 12px;
-            width: 12px;
-            background: inherit;
-            border-radius: inherit;
-            border: 2px solid #fff;
-            transform: translate(-50%, -50%);
-        }
-
-        .colors .option:first-child.selected::before {
-            border-color: #ccc;
-        }
-
-        .option #color-picker {
-            opacity: 0;
-            cursor: pointer;
-            width: 20px;
-            height: 20px;
-        }
-
-        .buttons button {
-            width: 100%;
-            color: #fff;
-            border: none;
-            outline: none;
-            padding: 10px 0;
-            font-size: 14px;
-            margin-bottom: 10px;
-            background: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .buttons .clear-canvas {
-            color: #6C757D;
-            border: 1px solid #6C757D;
-            transition: all 0.3s ease;
-        }
-
-        .clear-canvas:hover {
-            color: #fff;
-            background: #6C757D;
-        }
-
-        .buttons .save-map {
-            background: #4A98F7;
-            border: 1px solid #4A98F7;
-        }
-
-        .drawing-board {
-            flex: 1;
             overflow: hidden;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-            height: 700px;
+            display: inline-block;
+            width: 100%;
         }
-
-        .drawing-board canvas {
+        
+        .upload-btn {
+            border: 1px solid #4A98F7;
+            color: #4A98F7;
+            background-color: white;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            text-align: center;
+            display: block;
+            box-sizing: border-box;
+        }
+        
+        .upload-btn:hover {
+            background-color: #4A98F7;
+            color: white;
+        }
+        
+        .upload-btn-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
             width: 100%;
             height: 100%;
-            background: #fff;
+            cursor: pointer;
+        }
+
+        /* Стили для инструментов */
+        .row {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .row:last-child {
+            border-bottom: none;
+        }
+        
+        .title {
             display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        
+        .options {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        
+        .option:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .option svg {
+            margin-right: 8px;
+        }
+        
+        .option.active {
+            background-color: #e3f2fd;
+        }
+        
+        .option.selected {
+            outline: 2px solid #4A98F7;
+        }
+        
+        /* Стили для области рисования */
+        .drawing-area {
+            flex: 1;
+            position: relative;
+            width: 646px;
+            height: 676px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        #drawing-canvas-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #drawing-canvas {
+            display: block;
+            background-color: white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        /* Кнопки действий */
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .clear-canvas, .save-map {
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .clear-canvas {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .clear-canvas:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .save-map {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .save-map:hover {
+            background-color: #3e8e41;
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .editor-container {
+                flex-direction: column;
+            }
+            
+            .tools-board {
+                width: 100%;
+            }
+            
+            .drawing-area {
+                max-height: 60vh;
+            }
         }
     </style>
 </head>
@@ -212,6 +240,13 @@
                 <div class="form-group">
                     <label for="map-name">Название карты:</label>
                     <input type="text" id="map-name" required>
+                </div>
+                
+                <div class="upload-container">
+                    <div class="upload-btn-wrapper">
+                        <button class="upload-btn">Загрузить изображение</button>
+                        <input type="file" id="image-upload" accept="image/*">
+                    </div>
                 </div>
                 
                 <div class="row">
@@ -280,8 +315,10 @@
             </section>
 
             <!-- Холст для рисования -->
-            <section class="drawing-board">
-                <canvas id="drawing-canvas"></canvas>
+            <section class="drawing-area">
+                <div id="drawing-canvas-container">
+                    <canvas id="drawing-canvas"></canvas>
+                </div>
             </section>
         </div>
     </div>
@@ -299,14 +336,47 @@
             const saveMapBtn = document.querySelector(".save-map");
             const mapNameInput = document.getElementById("map-name");
             const editorTitle = document.getElementById("editor-title");
+            const imageUpload = document.getElementById("image-upload");
+            const drawingArea = document.querySelector(".drawing-area");
+            const canvasContainer = document.getElementById("drawing-canvas-container");
             
             // Параметры рисования
             let prevMouseX, prevMouseY, snapshot,
                 isDrawing = false,
                 selectedTool = "brush",
                 brushWidth = 5,
-                selectedColor = "#000";
-            
+                selectedColor = "#000",
+                scale = 1,
+                originalWidth = 800,
+                originalHeight = 600;
+            // Функция для масштабирования изображения под контейнер
+            const fitImageToContainer = () => {
+                const containerWidth = drawingArea.clientWidth;
+                const containerHeight = drawingArea.clientHeight;
+                
+                // Рассчитываем соотношение сторон изображения и контейнера
+                const imgRatio = originalWidth / originalHeight;
+                const containerRatio = containerWidth / containerHeight;
+                
+                let newWidth, newHeight;
+                
+                if (imgRatio > containerRatio) {
+                    // Ширина изображения - ограничивающий фактор
+                    newWidth = containerWidth;
+                    newHeight = containerWidth / imgRatio;
+                } else {
+                    // Высота изображения - ограничивающий фактор
+                    newHeight = containerHeight;
+                    newWidth = containerHeight * imgRatio;
+                }
+                
+                // Устанавливаем размеры холста
+                canvas.style.width = newWidth + 'px';
+                canvas.style.height = newHeight + 'px';
+                
+                // Обновляем масштаб для точного рисования
+                scale = newWidth / originalWidth;
+            };
             // Установка белого фона
             const setCanvasBackground = () => {
                 ctx.fillStyle = "#fff";
@@ -314,18 +384,62 @@
                 ctx.fillStyle = selectedColor;
             }
             
+            // Функция для масштабирования холста
+            const scaleCanvas = (newScale) => {
+                scale = newScale;
+                canvas.style.width = (originalWidth * scale) + 'px';
+                canvas.style.height = (originalHeight * scale) + 'px';
+            };
+            
+            // Функция для получения точных координат курсора на холсте
+            const getCanvasCoordinates = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / scale;
+                const y = (e.clientY - rect.top) / scale;
+                
+                return { 
+                    x: Math.max(0, Math.min(x, originalWidth)),
+                    y: Math.max(0, Math.min(y, originalHeight))
+                };
+            };
+            
+            // Автоматическое масштабирование под размер контейнера
+            const fitCanvasToContainer = () => {
+                const containerWidth = canvasContainer.clientWidth;
+                const containerHeight = canvasContainer.clientHeight;
+                
+                // Рассчитываем оптимальный масштаб
+                const widthScale = containerWidth / originalWidth;
+                const heightScale = containerHeight / originalHeight;
+                const newScale = Math.min(widthScale, heightScale, 1); // Не увеличиваем больше 100%
+                
+                scaleCanvas(newScale);
+            };
+            
             // Инициализация холста
             const initCanvas = () => {
-                canvas.width = canvas.offsetWidth;
-                canvas.height = canvas.offsetHeight;
+                // Начальный размер холста
+                originalWidth = 800;
+                originalHeight = 600;
+                canvas.width = originalWidth;
+                canvas.height = originalHeight;
                 setCanvasBackground();
+                
+                // Подгоняем размер под контейнер
+                fitCanvasToContainer();
                 
                 // Если есть карта для редактирования, загружаем её
                 const mapData = "{{ map.image_data if map else '' }}";
                 if (mapData) {
                     const img = new Image();
                     img.onload = function() {
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        originalWidth = img.width;
+                        originalHeight = img.height;
+                        canvas.width = originalWidth;
+                        canvas.height = originalHeight;
+                        setCanvasBackground();
+                        ctx.drawImage(img, 0, 0);
+                        fitCanvasToContainer();
                     };
                     img.src = mapData;
                     editorTitle.textContent = `Редактирование карты: {{ map.name }}`;
@@ -333,28 +447,54 @@
                 }
             }
             
+             // Обновленная функция загрузки изображения
+             imageUpload.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(event) {
+                        const img = new Image();
+                        img.onload = function() {
+                            originalWidth = img.width;
+                            originalHeight = img.height;
+                            canvas.width = originalWidth;
+                            canvas.height = originalHeight;
+                            setCanvasBackground();
+                            ctx.drawImage(img, 0, 0);
+                            fitImageToContainer();
+                        };
+                        img.src = event.target.result;
+                    };
+                    
+                    reader.readAsDataURL(e.target.files[0]);
+                }
+            });
+            
             // Рисование прямоугольника
             const drawRect = (e) => {
+                const coords = getCanvasCoordinates(e);
                 if (!fillColor.checked) {
-                    return ctx.strokeRect(e.offsetX, e.offsetY, prevMouseX - e.offsetX, prevMouseY - e.offsetY);
+                    return ctx.strokeRect(coords.x, coords.y, prevMouseX - coords.x, prevMouseY - coords.y);
                 }
-                ctx.fillRect(e.offsetX, e.offsetY, prevMouseX - e.offsetX, prevMouseY - e.offsetY);
+                ctx.fillRect(coords.x, coords.y, prevMouseX - coords.x, prevMouseY - coords.y);
             }
             
             // Рисование круга
             const drawCircle = (e) => {
+                const coords = getCanvasCoordinates(e);
                 ctx.beginPath();
-                let radius = Math.sqrt(Math.pow((prevMouseX - e.offsetX), 2) + Math.pow((prevMouseY - e.offsetY), 2));
+                let radius = Math.sqrt(Math.pow((prevMouseX - coords.x), 2) + Math.pow((prevMouseY - coords.y), 2));
                 ctx.arc(prevMouseX, prevMouseY, radius, 0, 2 * Math.PI);
                 fillColor.checked ? ctx.fill() : ctx.stroke();
             }
             
             // Рисование треугольника
             const drawTriangle = (e) => {
+                const coords = getCanvasCoordinates(e);
                 ctx.beginPath();
                 ctx.moveTo(prevMouseX, prevMouseY);
-                ctx.lineTo(e.offsetX, e.offsetY);
-                ctx.lineTo(prevMouseX * 2 - e.offsetX, e.offsetY);
+                ctx.lineTo(coords.x, coords.y);
+                ctx.lineTo(prevMouseX * 2 - coords.x, coords.y);
                 ctx.closePath();
                 fillColor.checked ? ctx.fill() : ctx.stroke();
             }
@@ -395,57 +535,57 @@
                 }
             });
             
-          // Сохранение карты
-saveMapBtn.addEventListener("click", () => {
-    const name = mapNameInput.value.trim();
-    if (!name) {
-        alert("Введите название карты");
-        return;
-    }
-    
-    const imageData = canvas.toDataURL("image/png");
-    const mapId = "{{ map.id if map else '' }}";
-    
-    // Определяем URL и метод в зависимости от того, редактируем или создаем
-    const url = mapId ? `/update_map/${mapId}` : '/create_map';
-    const method = 'POST'; // Всегда используем POST
-    
-    fetch(url, {
-        method: method,
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest' // Добавляем заголовок для Flask
-        },
-        body: JSON.stringify({
-            name: name,
-            image_data: imageData
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.text().then(text => { throw new Error(text) });
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            window.location.href = "{{ url_for('maps') }}";
-        } else {
-            alert('Ошибка при сохранении: ' + (data.error || 'Неизвестная ошибка'));
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Ошибка при сохранении. Проверьте консоль для деталей.');
-    });
-});
-
+            // Сохранение карты
+            saveMapBtn.addEventListener("click", () => {
+                const name = mapNameInput.value.trim();
+                if (!name) {
+                    alert("Введите название карты");
+                    return;
+                }
+                
+                const imageData = canvas.toDataURL("image/png");
+                const mapId = "{{ map.id if map else '' }}";
+                
+                // Определяем URL и метод в зависимости от того, редактируем или создаем
+                const url = mapId ? `/update_map/${mapId}` : '/create_map';
+                const method = 'POST';
+                
+                fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        image_data: imageData
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => { throw new Error(text) });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = "{{ url_for('maps') }}";
+                    } else {
+                        alert('Ошибка при сохранении: ' + (data.error || 'Неизвестная ошибка'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Ошибка при сохранении. Проверьте консоль для деталей.');
+                });
+            });
             
             // Начало рисования
             const startDraw = (e) => {
                 isDrawing = true;
-                prevMouseX = e.offsetX;
-                prevMouseY = e.offsetY;
+                const coords = getCanvasCoordinates(e);
+                prevMouseX = coords.x;
+                prevMouseY = coords.y;
                 ctx.beginPath();
                 ctx.lineWidth = brushWidth;
                 ctx.strokeStyle = selectedColor;
@@ -456,11 +596,14 @@ saveMapBtn.addEventListener("click", () => {
             // Процесс рисования
             const drawing = (e) => {
                 if (!isDrawing) return;
+                
+                const coords = getCanvasCoordinates(e);
+                
                 ctx.putImageData(snapshot, 0, 0);
                 
                 if (selectedTool === "brush" || selectedTool === "eraser") {
                     ctx.strokeStyle = selectedTool === "eraser" ? "#fff" : selectedColor;
-                    ctx.lineTo(e.offsetX, e.offsetY);
+                    ctx.lineTo(coords.x, coords.y);
                     ctx.stroke();
                 } else if (selectedTool === "rectangle") {
                     drawRect(e);
@@ -481,6 +624,9 @@ saveMapBtn.addEventListener("click", () => {
             canvas.addEventListener("mousemove", drawing);
             canvas.addEventListener("mouseup", endDrawing);
             canvas.addEventListener("mouseout", endDrawing);
+            
+            // Обработка изменения размера окна
+            window.addEventListener('resize', fitCanvasToContainer);
             
             // Инициализация при загрузке
             window.addEventListener("load", initCanvas);

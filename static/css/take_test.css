@@ -1,0 +1,234 @@
+:root {
+    --primary-color: #2E7D32;
+    --primary-light: #4CAF50;
+    --primary-dark: #1B5E20;
+    --secondary-color: #F5F5F5;
+    --accent-color: #8BC34A;
+    --text-dark: #212121;
+    --text-light: #757575;
+    --white: #FFFFFF;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
+}
+
+body {
+    font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--secondary-color);
+    color: var(--text-dark);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    line-height: 1.6;
+}
+
+header {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+    color: var(--white);
+    padding: 1.5rem 0;
+    text-align: center;
+    position: relative;
+    box-shadow: var(--shadow);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+header .user-info {
+    position: absolute;
+    top: 50%;
+    right: 2rem;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+header .user-name {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.logout-btn {
+    color: var(--white);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: var(--transition);
+}
+
+.logout-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.container {
+    flex: 1;
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.question {
+    background-color: var(--white);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+}
+
+.question:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.question h3 {
+    color: var(--primary-dark);
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.question p {
+    margin-bottom: 1.5rem;
+}
+
+textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    resize: vertical;
+    transition: var(--transition);
+    box-sizing: border-box;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(139, 195, 74, 0.3);
+}
+
+.options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.options label {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+.options label:hover {
+    background-color: rgba(139, 195, 74, 0.1);
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: var(--primary-light);
+}
+
+.button {
+    background-color: var(--primary-light);
+    color: var(--white);
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: var(--transition);
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    margin: 2rem auto 0;
+    text-align: center;
+}
+
+.button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 768px) {
+    header {
+        padding: 1rem 0;
+    }
+    
+    header h1 {
+        font-size: 1.5rem;
+        padding: 0 1rem;
+    }
+    
+    header .user-info {
+        position: static;
+        transform: none;
+        justify-content: center;
+        margin-top: 0.5rem;
+        padding: 0 1rem;
+    }
+    
+    .container {
+        padding: 1rem;
+    }
+    
+    .question {
+        padding: 1.2rem;
+    }
+    
+    .button {
+        max-width: none;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .options label {
+        padding: 0.8rem;
+        align-items: flex-start;
+    }
+    
+    input[type="radio"],
+    input[type="checkbox"] {
+        margin-top: 0.2rem;
+    }
+}
+textarea {
+width: 100%;
+min-height: 120px;
+padding: 0.8rem;
+border: 1px solid #ddd;
+border-radius: 4px;
+font-family: inherit;
+font-size: 1rem;
+resize: none; /* Запрещаем изменение размера */
+box-sizing: border-box;
+transition: var(--transition);
+overflow-y: hidden; /* Скрываем scrollbar при автоматическом увеличении */
+}
+textarea {
+max-height: 300px;
+overflow-y: auto !important; /* Показываем scrollbar только при достижении max-height */
+}
+textarea {
+transition: height 0.2s ease;
+}

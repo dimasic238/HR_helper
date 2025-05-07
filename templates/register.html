@@ -6,14 +6,17 @@
     <title>Регистрация</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/register.css') }}">
     <script>
-        function toggleHrField() {
+        function toggleFields() {
             const userType = document.querySelector('input[name="user_type"]:checked').value;
-            const hrField = document.getElementById('hr-phone-field');
+            const hrPhoneField = document.getElementById('hr-phone-field');
+            const vacancyField = document.getElementById('vacancy-field');
             
             if (userType === 'hr') {
-                hrField.style.display = 'none';
+                hrPhoneField.style.display = 'none';
+                vacancyField.style.display = 'none';
             } else {
-                hrField.style.display = 'block';
+                hrPhoneField.style.display = 'block';
+                vacancyField.style.display = 'block';
             }
         }
 
@@ -25,6 +28,7 @@
             const phone = document.getElementById('phone').value;
             const password = document.getElementById('password').value;
             const hrPhone = document.getElementById('hr-phone')?.value;
+            const vacancy = document.getElementById('vacancy')?.value;
             
             if (!surname || !name) {
                 alert('Фамилия и имя обязательны для заполнения');
@@ -46,9 +50,15 @@
                 return false;
             }
             
-            if (userType === 'candidate' && (!hrPhone || hrPhone.length < 10)) {
-                alert('Введите корректный номер телефона HR');
-                return false;
+            if (userType === 'candidate') {
+                if (!hrPhone || hrPhone.length < 10) {
+                    alert('Введите корректный номер телефона HR');
+                    return false;
+                }
+                if (!vacancy) {
+                    alert('Введите название вакансии');
+                    return false;
+                }
             }
             
             return true;
@@ -72,10 +82,10 @@
         <form class="registration-form" method="POST" action="{{ url_for('register') }}" enctype="multipart/form-data" onsubmit="return validateForm()">
             <div class="user-type">
                 <label>
-                    <input type="radio" name="user_type" value="candidate" checked onclick="toggleHrField()"> Кандидат
+                    <input type="radio" name="user_type" value="candidate" checked onclick="toggleFields()"> Кандидат
                 </label>
                 <label>
-                    <input type="radio" name="user_type" value="hr" onclick="toggleHrField()"> HR
+                    <input type="radio" name="user_type" value="hr" onclick="toggleFields()"> HR
                 </label>
             </div>
             
@@ -114,6 +124,11 @@
                 <input type="file" id="photo" name="photo" accept="image/*">
             </div>
             
+            <div class="input-group" id="vacancy-field">
+                <label for="vacancy">Название вакансии:</label>
+                <input type="text" id="vacancy" name="vacancy">
+            </div>
+            
             <div class="input-group" id="hr-phone-field">
                 <label for="hr-phone">Номер телефона HR:</label>
                 <input type="tel" id="hr-phone" name="hr_phone" list="hr-phones">
@@ -129,15 +144,48 @@
     </div>
 
     <script>
-        // Обновляем скрытое поле при изменении выбора
+        document.addEventListener("DOMContentLoaded", function () {
+            const candidateForm = document.getElementById("candidate-form");
+            const hrForm = document.getElementById("hr-form");
+            const userTypeRadios = document.querySelectorAll('input[name="user-type"]');
+
+            // Переключение между формами
+            userTypeRadios.forEach(radio => {
+                radio.addEventListener("change", function () {
+                    if (this.value === "candidate") {
+                        candidateForm.style.display = "block";
+                        hrForm.style.display = "none";
+                    } else {
+                        candidateForm.style.display = "none";
+                        hrForm.style.display = "block";
+                    }
+                });
+            });
+
+            // Обработка отправки формы кандидата
+            candidateForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                // Здесь можно добавить логику отправки данных
+                window.location.href = "candidate.html"; // Перенаправление
+            });
+
+            // Обработка отправки формы HR
+            hrForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                // Здесь можно добавить логику отправки данных
+                window.location.href = "hr.html"; // Перенаправление
+            });
+        });
+        
+        // Обновляем скрытые поля при изменении выбора
         document.querySelectorAll('input[name="user_type"]').forEach(radio => {
             radio.addEventListener('change', function() {
-                toggleHrField();
+                toggleFields();
             });
         });
         
         // Инициализация при загрузке
-        document.addEventListener('DOMContentLoaded', toggleHrField);
+        document.addEventListener('DOMContentLoaded', toggleFields);
     </script>
 </body>
 </html>

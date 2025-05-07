@@ -5,6 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель администратора</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <style>
+        /* Стили остаются такими же как в предыдущей версии */
+        .tab-container { margin-top: 20px; }
+        .tab-buttons { display: flex; margin-bottom: 15px; }
+        .tab-btn { padding: 10px 20px; background: #f1f1f1; border: none; cursor: pointer; margin-right: 5px; }
+        .tab-btn.active { background: #4CAF50; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .action-btn { padding: 5px 10px; margin: 0 3px; cursor: pointer; border: none; border-radius: 3px; }
+        .delete-btn { background-color: #f44336; color: white; }
+        .reassign-btn { background-color: #2196F3; color: white; }
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 50%; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .search-input { padding: 8px; width: 300px; margin-bottom: 15px; }
+    </style>
 </head>
 <body>
     <header>
@@ -15,43 +34,461 @@
         </div>
     </header>
 
-    <div class="admin-container">
-        <section class="users-section">
-            <h2>Все пользователи</h2>
-            <table class="users-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>ФИО</th>
-                        <th>Роль</th>
-                        <th>Email</th>
-                        <th>Телефон</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr>
-                        <td>{{ user.id }}</td>
-                        <td>{{ user.surname }} {{ user.name }}</td>
-                        <td>{{ user.role }}</td>
-                        <td>{{ user.mail }}</td>
-                        <td>{{ user.phone }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
+    <div class="admin-stats">
+    <div class="stat-card">
+        <h3>Всего пользователей</h3>
+        <p>{{ stats.total_users }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Кандидатов</h3>
+        <p>{{ stats.candidates }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>HR-менеджеров</h3>
+        <p>{{ stats.hr_managers }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Сотрудников</h3>
+        <p>{{ stats.employees }}</p>
+    </div>
+</div>
 
-        <div class="admin-stats">
-            <div class="stat-card">
-                <h3>Кандидатов</h3>
-                <p>{{ candidates|length }}</p>
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="openTab(event, 'users-tab')">Все пользователи</button>
+                <button class="tab-btn" onclick="openTab(event, 'hr-candidates-tab')">HR и кандидаты</button>
+                <button class="tab-btn" onclick="openTab(event, 'tests-tab')">Тесты и резюме</button>
             </div>
-            <div class="stat-card">
-                <h3>HR-менеджеров</h3>
-                <p>{{ hr_list|length }}</p>
+
+            <!-- Таблица всех пользователей -->
+            <div id="users-tab" class="tab-content active">
+                <input type="text" id="users-search" class="search-input" placeholder="Поиск пользователей..." onkeyup="searchTable('users-search', 'users-table')">
+                <table id="users-table" class="users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ФИО</th>
+                            <th>Роль</th>
+                            <th>Email</th>
+                            <th>Телефон</th>
+                            <th>Пароль</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.surname }} {{ user.name }}</td>
+                            <td>{{ user.role }}</td>
+                            <td>{{ user.mail }}</td>
+                            <td>{{ user.phone }}</td>
+                            <td>
+                                <span class="password-strength" data-user-id="{{ user.id }}">
+                                    {% if user.password %}Установлен{% else %}Не установлен{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="action-btn change-password-btn" 
+                                        onclick="showChangePasswordModal('{{ user.id }}', '{{ user.surname }} {{ user.name }}')">
+                                    Сменить пароль
+                                </button>
+                                {% if user.role != 'admin' %}
+                                <button class="action-btn delete-btn" onclick="deleteUser('{{ user.id }}')">Удалить</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Таблица HR и их кандидатов -->
+            <div id="hr-candidates-tab" class="tab-content">
+                <input type="text" id="hr-search" class="search-input" placeholder="Поиск HR или кандидатов..." onkeyup="searchTable('hr-search', 'hr-candidates-table')">
+                <table id="hr-candidates-table" class="hr-candidates-table">
+                    <thead>
+                        <tr>
+                            <th>HR (ID)</th>
+                            <th>HR (ФИО)</th>
+                            <th>HR (Телефон)</th>
+                            <th>Кандидат (ID)</th>
+                            <th>Кандидат (ФИО)</th>
+                            <th>Вакансия</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for hr_id, data in hr_candidates.items() %}
+                            {% for candidate in data.candidates %}
+                            <tr>
+                                <td>{{ data.hr_info.id }}</td>
+                                <td>{{ data.hr_info.surname }} {{ data.hr_info.name }}</td>
+                                <td>{{ data.hr_info.phone }}</td>
+                                <td>{{ candidate.user_id }}</td>
+                                <td>{{ candidate.surname }} {{ candidate.name }}</td>
+                                <td>{{ candidate.status }}</td>
+                                <td>
+                                    <button class="action-btn reassign-btn" 
+                                            onclick="showReassignModal('{{ candidate.id }}', '{{ candidate.surname }} {{ candidate.name }}', '{{ data.hr_info.phone }}')">
+                                        Переназначить
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Таблица тестов и резюме -->
+            <div id="tests-tab" class="tab-content">
+                <input type="text" id="tests-search" class="search-input" placeholder="Поиск по тестам или кандидатам..." onkeyup="searchTable('tests-search', 'tests-resumes-table')">
+                <table id="tests-resumes-table" class="tests-resumes-table">
+                    <thead>
+                        <tr>
+                            <th>Кандидат (ID)</th>
+                            <th>Кандидат (ФИО)</th>
+                            <th>Тест</th>
+                            <th>Статус</th>
+                            <th>Результат</th>
+                            <th>Резюме</th>
+                            <th>Дата резюме</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in tests_resumes %}
+                        <tr>
+                            <td>{{ item.user_id }}</td>
+                            <td>{{ item.surname }} {{ item.name }}</td>
+                            <td>{{ item.test_name if item.test_name else '-' }}</td>
+                            <td>{% if item.completed %}Пройден{% else %}Ожидает{% endif %}</td>
+                            <td>{% if item.score %}{{ item.score }}/{{ item.max_score }}{% else %}-{% endif %}</td>
+                            <td>
+                                {% if item.resume_filename %}
+                                    <a href="{{ url_for('download_candidate_resume', candidate_id=item.candidate_id) }}">Скачать</a>
+                                {% else %}Отсутствует{% endif %}
+                            </td>
+                            <td>{{ item.application_date.strftime('%d.%m.%Y') if item.application_date else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+<!-- Модальное окно для смены пароля -->
+<div id="change-password-modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closePasswordModal()">&times;</span>
+        <h2>Смена пароля</h2>
+        <p>Пользователь: <span id="password-modal-username"></span></p>
+        
+        <div class="form-group">
+            <label for="new-password">Новый пароль:</label>
+            <input type="password" id="new-password" class="form-input" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="confirm-password">Подтвердите пароль:</label>
+            <input type="password" id="confirm-password" class="form-input" required>
+        </div>
+        
+        <div id="password-requirements">
+            <p>Пароль должен содержать:</p>
+            <ul>
+                <li id="req-length">Минимум 6 символов</li>
+
+            </ul>
+        </div>
+        
+        <button onclick="changePassword()" class="button primary">Сохранить</button>
+        <button onclick="closePasswordModal()" class="button">Отмена</button>
+        <input type="hidden" id="password-modal-user-id">
+    </div>
+</div>
+    <!-- Модальное окно для переназначения кандидата -->
+    <div id="reassign-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Переназначение кандидата</h2>
+            <p>Кандидат: <span id="modal-candidate-name"></span></p>
+            <p>Текущий HR: <span id="modal-current-hr"></span></p>
+            
+            <div style="margin: 20px 0;">
+                <label for="new-hr-search">Новый HR (поиск по имени или телефону):</label>
+                <input type="text" id="new-hr-search" style="padding: 8px; width: 100%;" oninput="searchHr(this.value)">
+            </div>
+            
+            <div id="hr-search-results" style="margin: 10px 0; max-height: 200px; overflow-y: auto;"></div>
+            
+            <button onclick="reassignCandidate()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer;">Подтвердить</button>
+            <input type="hidden" id="current-candidate-id">
+            <input type="hidden" id="selected-hr-id">
+        </div>
+    </div>
+
+    <script>
+        // Показ модального окна смены пароля
+function showChangePasswordModal(userId, username) {
+    document.getElementById('password-modal-username').textContent = username;
+    document.getElementById('password-modal-user-id').value = userId;
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+    document.getElementById('change-password-modal').style.display = 'block';
+    
+    // Проверяем текущий пароль
+    fetch('/admin/check_password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+        }
+    });
+}
+
+// Закрытие модального окна
+function closePasswordModal() {
+    document.getElementById('change-password-modal').style.display = 'none';
+}
+
+// Валидация пароля
+function validatePassword(password) {
+    const requirements = {
+        length: password.length >= 6,
+        upper: /[A-Z]/.test(password),
+        number: /\d/.test(password)
+    };
+    
+    // Визуальная индикация
+    document.getElementById('req-length').style.color = requirements.length ? 'green' : 'red';
+    document.getElementById('req-upper').style.color = requirements.upper ? 'green' : 'red';
+    document.getElementById('req-number').style.color = requirements.number ? 'green' : 'red';
+    
+    return requirements.length && requirements.upper && requirements.number;
+}
+
+// Смена пароля
+function changePassword() {
+    const userId = document.getElementById('password-modal-user-id').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    
+    // Проверка только на минимальную длину
+    if (newPassword.length < 5) {
+        alert('Пароль должен содержать минимум 5 символов');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        alert('Пароли не совпадают');
+        return;
+    }
+    
+    fetch('/admin/change_password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            user_id: userId,
+            new_password: newPassword
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Пароль успешно изменен');
+            closePasswordModal();
+            document.querySelector(`.password-strength[data-user-id="${userId}"]`).textContent = 'Установлен';
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при изменении пароля');
+    });
+}
+
+// Валидация при вводе пароля
+document.getElementById('new-password').addEventListener('input', function() {
+    validatePassword(this.value);
+});
+        // Управление вкладками
+        function openTab(evt, tabName) {
+            const tabContents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove("active");
+            }
+            
+            const tabButtons = document.getElementsByClassName("tab-btn");
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove("active");
+            }
+            
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+        
+        // Поиск по таблицам
+        function searchTable(inputId, tableId) {
+            const input = document.getElementById(inputId);
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById(tableId);
+            const tr = table.getElementsByTagName("tr");
+            
+            for (let i = 1; i < tr.length; i++) {
+                let found = false;
+                const td = tr[i].getElementsByTagName("td");
+                
+                for (let j = 0; j < td.length; j++) {
+                    if (td[j]) {
+                        const txtValue = td[j].textContent || td[j].innerText;
+                        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                
+                tr[i].style.display = found ? "" : "none";
+            }
+        }
+        
+        // Удаление пользователя
+        function deleteUser(userId) {
+            if (confirm('Вы уверены, что хотите удалить этого пользователя? Все связанные данные также будут удалены.')) {
+                fetch(`/admin/delete_user/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Пользователь успешно удален');
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Произошла ошибка при удалении пользователя');
+                });
+            }
+        }
+        
+        // Модальное окно для переназначения
+        function showReassignModal(candidateId, candidateName, currentHrPhone) {
+            document.getElementById('modal-candidate-name').textContent = candidateName;
+            document.getElementById('modal-current-hr').textContent = currentHrPhone;
+            document.getElementById('current-candidate-id').value = candidateId;
+            document.getElementById('reassign-modal').style.display = 'block';
+            document.getElementById('hr-search-results').innerHTML = '';
+            document.getElementById('new-hr-search').value = '';
+            document.getElementById('selected-hr-id').value = '';
+        }
+        
+        function closeModal() {
+            document.getElementById('reassign-modal').style.display = 'none';
+        }
+        
+        // Поиск HR
+        function searchHr(searchTerm) {
+            if (searchTerm.length < 2) {
+                document.getElementById('hr-search-results').innerHTML = '';
+                return;
+            }
+            
+            fetch(`/admin/search_hr?term=${encodeURIComponent(searchTerm)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultsDiv = document.getElementById('hr-search-results');
+                    resultsDiv.innerHTML = '';
+                    
+                    if (data.length === 0) {
+                        resultsDiv.innerHTML = '<p>HR не найдены</p>';
+                        return;
+                    }
+                    
+                    const list = document.createElement('ul');
+                    data.forEach(hr => {
+                        const item = document.createElement('li');
+                        item.innerHTML = `
+                            ${hr.name} (${hr.phone})
+                            <button onclick="selectHr('${hr.id}', '${hr.name}', '${hr.phone}')">
+                                Выбрать
+                            </button>
+                        `;
+                        list.appendChild(item);
+                    });
+                    
+                    resultsDiv.appendChild(list);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('hr-search-results').innerHTML = '<p>Ошибка поиска</p>';
+                });
+        }
+        
+        function selectHr(hrId, hrName, hrPhone) {
+            document.getElementById('selected-hr-id').value = hrId;
+            document.getElementById('hr-search-results').innerHTML = `
+                <p><strong>Выбран:</strong> ${hrName} (${hrPhone})</p>
+            `;
+        }
+        
+        // Переназначение кандидата
+        function reassignCandidate() {
+            const candidateId = document.getElementById('current-candidate-id').value;
+            const newHrId = document.getElementById('selected-hr-id').value;
+            
+            if (!candidateId || !newHrId) {
+                alert('Выберите нового HR для кандидата');
+                return;
+            }
+            
+            fetch('/admin/reassign_candidate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    candidate_id: candidateId,
+                    new_hr_id: newHrId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Кандидат успешно переназначен');
+                    closeModal();
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка при переназначении');
+            });
+        }
+        
+        // Закрытие модального окна при клике вне его
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('reassign-modal')) {
+                closeModal();
+            }
+        }
+    </script>
 </body>
 </html>

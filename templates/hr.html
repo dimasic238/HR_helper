@@ -6,39 +6,7 @@
     <title>HR Portal</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/hr.css') }}">
     <style>
-        /* Только минимальные стили для мобильной адаптации */
-        @media (max-width: 768px) {
-            .table-container {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                margin-bottom: 20px;
-                border: 1px solid #ddd;
-            }
-            
-            table {
-                min-width: 600px; /* Минимальная ширина таблицы */
-                margin-bottom: 0;
-            }
-            
-            .button {
-                padding: 10px 15px;
-                font-size: 14px;
-            }
-            
-            #office-guide .button.primary {
-                width: 100%;
-                box-sizing: border-box;
-                text-align: center;
-            }
-            
-            .search-container {
-                flex-direction: column;
-            }
-            
-            .search-container .search-input {
-                margin-bottom: 10px;
-            }
-        }
+
     </style>
 </head>
 <body>
@@ -57,6 +25,7 @@
         <a href="#tests">Тесты</a>
         <a href="#results">Результаты</a>
         <a href="#office-guide">Путеводитель по офису</a>
+        <a href="#notes">Мои заметки</a>
     </nav>
 
     <div class="container">
@@ -71,7 +40,7 @@
                             <th>Фамилия Имя</th>
                             <th>Телефон</th>
                             <th>Email</th>
-                            <th>Статус</th>
+                            <th>Вакансия</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -98,6 +67,170 @@
             <p>У вас нет кандидатов</p>
             {% endif %}
         </section>
+<!-- Добавьте эту таблицу после существующей таблицы кандидатов -->
+<h3>Резюме кандидатов</h3>
+<div class="table-container">
+    <table class="resume-table">
+        <thead>
+            <tr>
+                <th>№</th>
+                <th>Кандидат</th>
+                <th>Резюме</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for candidate in candidates %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ candidate.user.surname }} {{ candidate.user.name }}</td>
+                <td>
+                    {% if candidate.resume_filename %}
+                        <span class="resume-uploaded">{{ candidate.resume_filename }}</span>
+                    {% else %}
+                        <span class="resume-missing">Кандидат не загрузил резюме</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if candidate.resume_filename %}
+                        <a href="{{ url_for('download_candidate_resume', candidate_id=candidate.id) }}" 
+                           class="button small">Скачать</a>
+                    {% else %}
+                        <span class="no-resume">Нет резюме</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4">Нет кандидатов</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+        <section id="resumes" class="section">
+            <h2>Прохождение резюмирования кандидатов</h2>
+            
+            <!-- Проверка существования теста "Резюме" -->
+            {% set resume_test = tests|selectattr("name", "equalto", "Резюме")|first %}
+            
+            <div class="resume-test-info">
+                {% if resume_test %}
+                {% else %}
+                    <p class="warning">Тест "Резюме" не создан. Создайте тест с названием "Резюме" для работы с этой секцией.</p>
+                {% endif %}
+            </div>
+            
+            <div class="table-container">
+                <table class="resume-table">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Кандидат</th>
+                            <th>Вакансия</th>
+                            <th>Статус резюме</th>
+                            <th>Дата заполнения</th>
+                            <th>Оценка</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for candidate in candidates %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ candidate.user.surname }} {{ candidate.user.name }}</td>
+                            <td>{{ candidate.status }}</td>
+                            <td>
+                                {% if resume_test %}
+                                    {% set resume_assignment = assignments|selectattr("test_id", "equalto", resume_test.id)|selectattr("candidate_id", "equalto", candidate.id)|first %}
+                                    
+                                    <div class="resume-status">
+                                        {% if resume_assignment %}
+                                            {% if resume_assignment.completed %}
+                                                <div class="resume-status-icon completed" title="Резюме заполнено"></div>
+                                                <span>Заполнено</span>
+                                            {% else %}
+                                                <div class="resume-status-icon pending" title="Ожидает заполнения"></div>
+                                                <span>Не заполнено</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <div class="resume-status-icon not-assigned" title="Тест не назначен"></div>
+                                            <span>Не назначено</span>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <div class="resume-status">
+                                        <div class="resume-status-icon no-test" title="Тест не создан"></div>
+                                        <span>Тест не создан</span>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if resume_assignment and resume_assignment.completed and resume_assignment.results %}
+                                    {{ resume_assignment.results.completed_at.strftime('%d.%m.%Y %H:%M') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if resume_assignment and resume_assignment.completed and resume_assignment.results %}
+                                    {{ resume_assignment.results.score }} / {{ resume_assignment.results.max_score }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if resume_assignment and resume_assignment.completed and resume_assignment.results %}
+                                    <a href="{{ url_for('hr_test_result', result_id=resume_assignment.results.id) }}" class="button small">Просмотр</a>
+                                {% elif resume_test and not resume_assignment %}
+                                    <button onclick="assignResumeTest('{{ resume_test.id }}', '{{ candidate.id }}')" class="button small">Назначить</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7">Нет кандидатов</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="resume-actions">
+                <a href="{{ url_for('compare_candidates') }}" class="button primary">Сравнение кандидатов на вакансию</a>
+            </div>
+        </section>
+        <section id="notes" class="section">
+            <h2>Мои заметки</h2>
+            <button id="addNoteBtn" class="button primary">Добавить заметку</button>
+            
+            <div id="notesContainer" class="notes-container">
+                <!-- Заметки будут загружаться здесь -->
+            </div>
+            
+            <!-- Модальное окно для редактирования/создания заметки -->
+            <div id="noteModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-modal">&times;</span>
+                    <h3 id="modalTitle">Новая заметка</h3>
+                    <form id="noteForm">
+                        <input type="hidden" id="noteId">
+                        <div class="form-group">
+                            <label for="noteTitleInput">Заголовок:</label>
+                            <input type="text" id="noteTitleInput" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="noteContentInput">Содержание:</label>
+                            <textarea id="noteContentInput" class="form-textarea" required></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="button primary">Сохранить</button>
+                            <button type="button" class="button secondary" id="cancelNoteBtn">Отмена</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
 
         <section id="reports" class="section">
             <h2>Отчеты</h2>
@@ -121,8 +254,13 @@
                             <td>{{ report.hr.user.surname }} {{ report.hr.user.name }}</td>
                             <td>
                                 <a href="{{ url_for('view_report', report_id=report.id) }}" class="button small">Просмотреть</a>
-                                <a href="{{ url_for('download_report', report_id=report.id, format='pdf') }}" class="button small">PDF</a>
-                                <a href="{{ url_for('download_report', report_id=report.id, format='word') }}" class="button small">Word</a>
+                                {% if not report.is_binary %}
+                                    <a href="{{ url_for('export_report', report_id=report.id, format='pdf') }}" class="button small">PDF</a>
+                                    <a href="{{ url_for('export_report', report_id=report.id, format='word') }}" class="button small">Word</a>
+                                {% else %}
+                                    <a href="{{ url_for('download_report', report_id=report.id) }}" class="button small">Скачать</a>
+                                {% endif %}
+                                <button onclick="deleteReport('{{ report.id }}')" class="button small danger">Удалить</button>
                             </td>
                         </tr>
                         {% else %}
@@ -297,6 +435,215 @@
         <p>&copy; {{ current_year }} HR Portal. Все права защищены.</p>
     </footer>
     <script>
+        // Функционал заметок
+        document.addEventListener('DOMContentLoaded', function() {
+    const notesContainer = document.getElementById('notesContainer');
+    const addNoteBtn = document.getElementById('addNoteBtn');
+    const noteModal = document.getElementById('noteModal');
+    const closeModalBtn = document.querySelector('.close-modal');
+    const cancelNoteBtn = document.getElementById('cancelNoteBtn');
+    const noteForm = document.getElementById('noteForm');
+    const noteIdInput = document.getElementById('noteId');
+    const noteTitleInput = document.getElementById('noteTitleInput');
+    const noteContentInput = document.getElementById('noteContentInput');
+    const modalTitle = document.getElementById('modalTitle');
+    
+    // Загружаем заметки при загрузке страницы
+    loadNotes();
+    
+    // Открываем модальное окно для создания новой заметки
+    addNoteBtn.addEventListener('click', () => openModal());
+    
+    // Закрываем модальное окно
+    closeModalBtn.addEventListener('click', closeModal);
+    cancelNoteBtn.addEventListener('click', closeModal);
+    window.addEventListener('click', (e) => {
+        if (e.target === noteModal) closeModal();
+    });
+    
+    // Обработка отправки формы
+    noteForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveNote();
+    });
+    
+    // Функция загрузки заметок
+    function loadNotes() {
+        fetch('/hr/notes')
+            .then(response => response.json())
+            .then(data => {
+                if (data.notes && data.notes.length > 0) {
+                    renderNotes(data.notes);
+                } else {
+                    notesContainer.innerHTML = '<p>У вас пока нет заметок</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки заметок:', error);
+                notesContainer.innerHTML = '<p class="error">Ошибка загрузки заметок</p>';
+            });
+    }
+    
+    // Функция отображения заметок
+    function renderNotes(notes) {
+        notesContainer.innerHTML = notes.map(note => `
+            <div class="note-card" data-id="${note.id}">
+                <h4>${note.title}</h4>
+                <div class="note-content">${note.content}</div>
+                <div class="note-date">${new Date(note.created_at).toLocaleString()}</div>
+                <div class="note-actions">
+                    <button class="button secondary edit-btn">Редактировать</button>
+                    <button class="button danger delete-btn">Удалить</button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Добавляем обработчики для кнопок редактирования и удаления
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const noteCard = this.closest('.note-card');
+                const noteId = noteCard.dataset.id;
+                editNote(noteId);
+            });
+        });
+        
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const noteCard = this.closest('.note-card');
+                const noteId = noteCard.dataset.id;
+                deleteNote(noteId);
+            });
+        });
+    }
+    
+    // Функция открытия модального окна
+    function openModal(note = null) {
+        if (note) {
+            modalTitle.textContent = 'Редактировать заметку';
+            noteIdInput.value = note.id;
+            noteTitleInput.value = note.title;
+            noteContentInput.value = note.content;
+        } else {
+            modalTitle.textContent = 'Новая заметка';
+            noteIdInput.value = '';
+            noteTitleInput.value = '';
+            noteContentInput.value = '';
+        }
+        noteModal.style.display = 'block';
+    }
+    
+    // Функция закрытия модального окна
+    function closeModal() {
+        noteModal.style.display = 'none';
+    }
+    
+    // Функция сохранения заметки
+    function saveNote() {
+        const noteId = noteIdInput.value;
+        const title = noteTitleInput.value.trim();
+        const content = noteContentInput.value.trim();
+        
+        if (!title || !content) {
+            alert('Заполните все поля');
+            return;
+        }
+        
+        const url = noteId ? `/hr/notes/${noteId}` : '/hr/notes';
+        const method = noteId ? 'PUT' : 'POST';
+        
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title: title,
+                content: content
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeModal();
+                loadNotes();
+            } else {
+                alert(data.error || 'Ошибка при сохранении заметки');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            alert('Произошла ошибка при сохранении заметки');
+        });
+    }
+    
+    // Функция редактирования заметки
+    function editNote(noteId) {
+        fetch('/hr/notes')
+            .then(response => response.json())
+            .then(data => {
+                const note = data.notes.find(n => n.id == noteId);
+                if (note) openModal(note);
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Не удалось загрузить заметку для редактирования');
+            });
+    }
+    
+    // Функция удаления заметки
+    function deleteNote(noteId) {
+        if (confirm('Вы уверены, что хотите удалить эту заметку?')) {
+            fetch(`/hr/notes/${noteId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadNotes();
+                } else {
+                    alert(data.error || 'Ошибка при удалении заметки');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при удалении заметки');
+            });
+        }
+    }
+});
+         // Функция для назначения теста "Резюме"
+         function assignResumeTest(testId, candidateId) {
+            fetch("{{ url_for('assign_test') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    test_id: testId,
+                    candidate_id: candidateId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Тест "Резюме" успешно назначен кандидату!');
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка при назначении теста');
+            });
+        }
+
+        // Заглушка для функции сравнения кандидатов
+        function compareCandidates() {
+            alert('Функция сравнения кандидатов будет реализована в ближайшее время');
+            // Здесь будет реализация сравнения кандидатов
+        }
+        
         // Модальное окно
         const modal = document.getElementById("evaluationModal");
         const span = document.getElementsByClassName("close")[0];
@@ -721,6 +1068,216 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert(`Функция связи с кандидатом ${resumeId} будет реализована позже`);
     };
 });
+document.addEventListener("DOMContentLoaded", function() {
+    // Элементы DOM
+    const reportsSection = document.getElementById("reports");
+    const reportsTable = reportsSection.querySelector("tbody");
+    
+    // Создаем кнопку загрузки отчета
+    const uploadBtn = document.createElement("button");
+    uploadBtn.className = "button primary";
+    uploadBtn.textContent = "Загрузить отчет";
+    uploadBtn.style.marginRight = "10px";
+    uploadBtn.style.marginBottom = "20px";
+    
+    // Добавляем кнопку перед таблицей
+    reportsSection.querySelector(".table-container").prepend(uploadBtn);
+    
+    // Создаем input для загрузки файла
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".pdf,.doc,.docx,.xls,.xlsx";
+    fileInput.style.display = "none";
+    fileInput.id = "reportUploadInput";
+    document.body.appendChild(fileInput);
+    
+    // Обработчик клика по кнопке
+    uploadBtn.addEventListener("click", function() {
+        fileInput.click();
+    });
+    
+    // Обработчик выбора файла
+    fileInput.addEventListener("change", function(e) {
+        if (e.target.files.length > 0) {
+            const file = e.target.files[0];
+            uploadReport(file);
+        }
+    });
+    
+ // Функция загрузки отчета
+ async function uploadReport(file) {
+    // Проверяем размер файла (максимум 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        alert("Файл слишком большой. Максимальный размер - 10MB.");
+        return;
+    }
+    
+    // Проверяем тип файла
+    const validTypes = [
+        'application/pdf', 
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain',
+        'text/csv'
+    ];
+    
+    if (!validTypes.includes(file.type)) {
+        alert("Недопустимый формат файла. Разрешены: PDF, Word, Excel, TXT, CSV");
+        return;
+    }
+    
+    // Запрашиваем название отчета
+    const reportName = prompt("Введите название отчета:");
+    if (!reportName) return;
+    
+    // Создаем форму для отправки
+    const formData = new FormData();
+    formData.append("report", file);
+    formData.append("name", reportName);
+    
+    // Показываем индикатор загрузки
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = "Загрузка...";
+    
+    try {
+        const response = await fetch("/upload_report", {
+            method: "POST",
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Добавляем новый отчет в таблицу
+            addReportToTable(result.report);
+            alert("Отчет успешно загружен!");
+        } else {
+            throw new Error(result.error || "Неизвестная ошибка");
+        }
+    } catch (error) {
+        console.error("Ошибка загрузки отчета:", error);
+        alert("Ошибка при загрузке отчета: " + error.message);
+    } finally {
+        // Восстанавливаем кнопку
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = "Загрузить отчет";
+        // Сбрасываем input
+        fileInput.value = "";
+    }
+}
+
+    function addReportToTable(report) {
+    const row = document.createElement("tr");
+    
+    // Номер
+    const numCell = document.createElement("td");
+    numCell.textContent = reportsTable.rows.length + 1;
+    
+    // Название
+    const nameCell = document.createElement("td");
+    nameCell.textContent = report.name;
+    
+    // Дата
+    const dateCell = document.createElement("td");
+    const date = new Date(report.created_at);
+    dateCell.textContent = date.toLocaleDateString("ru-RU") + " " + date.toLocaleTimeString("ru-RU").slice(0, 5);
+    
+    // Автор
+    const authorCell = document.createElement("td");
+    authorCell.textContent = "{{ current_user['name'] }}";
+    
+    // Действия
+    const actionsCell = document.createElement("td");
+    
+    // Ссылка на просмотр
+    const viewLink = document.createElement("a");
+    viewLink.href = `/reports/${report.id}`;
+    viewLink.className = "button small";
+    viewLink.textContent = "Просмотреть";
+    
+    // Ссылка на скачивание PDF
+    const pdfLink = document.createElement("a");
+    pdfLink.href = `/reports/${report.id}/export/pdf`;
+    pdfLink.className = "button small";
+    pdfLink.textContent = "PDF";
+    pdfLink.style.marginLeft = "5px";
+    
+    // Ссылка на скачивание Word
+    const wordLink = document.createElement("a");
+    wordLink.href = `/reports/${report.id}/export/word`;
+    wordLink.className = "button small";
+    wordLink.textContent = "Word";
+    wordLink.style.marginLeft = "5px";
+    
+    actionsCell.appendChild(viewLink);
+    actionsCell.appendChild(pdfLink);
+    actionsCell.appendChild(wordLink);
+    
+    // Собираем строку
+    row.appendChild(numCell);
+    row.appendChild(nameCell);
+    row.appendChild(dateCell);
+    row.appendChild(authorCell);
+    row.appendChild(actionsCell);
+    
+    // Добавляем строку в таблицу
+    reportsTable.appendChild(row);
+}
+    
+    // Стили для кнопки загрузки
+    const style = document.createElement("style");
+    style.textContent = `
+        #reportUploadInput {
+            display: none;
+        }
+        .uploading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+    `;
+    document.head.appendChild(style);
+});
+// Кнопка удаления
+const deleteBtn = document.createElement("button");
+deleteBtn.className = "button small danger";
+deleteBtn.textContent = "Удалить";
+deleteBtn.style.marginLeft = "5px";
+deleteBtn.onclick = function() {
+    deleteReport(report.id);
+};
+
+actionsCell.appendChild(deleteBtn);
+// Функция для удаления отчета
+function deleteReport(reportId) {
+    if (confirm('Вы уверены, что хотите удалить этот отчет? Это действие нельзя отменить.')) {
+        fetch(`/delete_report/${reportId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Отчет успешно удален');
+                location.reload();
+            } else {
+                alert('Ошибка при удалении отчета: ' + (data.error || 'Неизвестная ошибка'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Произошла ошибка при удалении отчета');
+        });
+    }
+}
     </script>
 </body>
 </html>

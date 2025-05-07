@@ -1,0 +1,27 @@
+.question-card {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+}
+.correct-answer {
+    color: green;
+    font-weight: bold;
+}
+.user-answer {
+    margin-top: 5px;
+    padding: 5px;
+    background-color: #f5f5f5;
+}
+.score-input {
+    width: 50px;
+}
+.button {
+    padding: 8px 15px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+}

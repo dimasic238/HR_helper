@@ -1,133 +1,417 @@
-/* Основные стили */
-.editor-container {
-    max-width: 1200px;
-    margin: 20px auto;
-    padding: 20px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    font-family: Arial, sans-serif;
-}
-
-.toolbar {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #ddd;
-}
-
-.toolbar button {
-    padding: 8px 12px;
-    background: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.toolbar button:hover {
-    background: #e0e0e0;
-}
-
-.export-buttons {
-    margin-left: auto;
-    display: flex;
-    gap: 10px;
-}
-
-.export-btn {
-    background: #4CAF50;
-    color: white;
-    border: none;
-}
-
-.export-btn:hover {
-    background: #45a049;
-}
-
-.text-editor {
-    min-height: 500px;
-    border: 1px solid #ddd;
-    padding: 20px;
-    line-height: 1.6;
-    outline: none;
-}
-
-/* Модальные окна */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.4);
-}
-
-.modal-content {
-    background-color: #fefefe;
-    margin: 15% auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    max-width: 500px;
-    border-radius: 5px;
-}
-
-.close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-.close:hover {
-    color: black;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-.form-group input, 
-.form-group textarea {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-}
-
-/* Таблицы в редакторе */
-table {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 15px 0;
-}
-
-table, th, td {
-    border: 1px solid #ddd;
-}
-
-th, td {
-    padding: 8px;
-    text-align: left;
-}
-
-/* Сравнение кандидатов */
-.comparison-table {
-    width: 100%;
-    margin: 20px 0;
-}
-
-.comparison-header {
-    background: #f5f5f5;
-    font-weight: bold;
-}
+        /* Основные стили */
+        :root {
+            --primary-color: #4285f4;
+            --secondary-color: #34a853;
+            --accent-color: #ea4335;
+            --light-gray: #f8f9fa;
+            --medium-gray: #e9ecef;
+            --dark-gray: #495057;
+            --text-color: #212529;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--light-gray);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        
+        .editor-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            background: white;
+            padding: 25px;
+            box-shadow: var(--box-shadow);
+            border-radius: var(--border-radius);
+        }
+        
+        .report-title {
+            width: 100%;
+            padding: 12px 15px;
+            font-size: 1.25rem;
+            margin-bottom: 20px;
+            border: 2px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            transition: border-color 0.3s ease;
+        }
+        
+        .report-title:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--medium-gray);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .toolbar button {
+            padding: 8px 14px;
+            background: white;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .toolbar button:hover {
+            background: var(--light-gray);
+            transform: translateY(-1px);
+        }
+        
+        .toolbar button.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .toolbar select {
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--medium-gray);
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        
+        .text-editor {
+            min-height: 500px;
+            border: 1px solid var(--medium-gray);
+            padding: 20px;
+            line-height: 1.8;
+            outline: none;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius);
+            background: white;
+        }
+        
+        .export-buttons {
+            margin-top: 25px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .export-btn {
+            padding: 12px 24px;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .export-btn:hover {
+            background: #2d9247;
+            transform: translateY(-1px);
+            box-shadow: var(--box-shadow);
+        }
+        
+        /* Стили для таблиц */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            display: block;
+        }
+        
+        thead {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border: 1px solid var(--medium-gray);
+        }
+        
+        th {
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        
+        tbody tr:nth-child(even) {
+            background-color: var(--light-gray);
+        }
+        
+        tbody tr:hover {
+            background-color: rgba(66, 133, 244, 0.1);
+        }
+        
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(3px);
+            overflow-y: auto;
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            animation: modalFadeIn 0.3s ease;
+        }
+        
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .close {
+            color: var(--dark-gray);
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        
+        .close:hover {
+            color: var(--accent-color);
+        }
+        
+        /* Формы */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-gray);
+        }
+        
+        .form-group input, 
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus, 
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+        }
+        
+        /* Список кандидатов */
+        .candidate-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            padding: 0;
+            background: white;
+        }
+        
+        .candidate-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--medium-gray);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .candidate-item:last-child {
+            border-bottom: none;
+        }
+        
+        .candidate-item:hover {
+            background-color: rgba(66, 133, 244, 0.05);
+        }
+        
+        .candidate-item.selected {
+            background-color: rgba(52, 168, 83, 0.1);
+            border-left: 3px solid var(--secondary-color);
+        }
+        
+        /* Критерии */
+        .criteria-input {
+            margin-top: 10px;
+        }
+        
+        .add-criteria-btn {
+            margin-top: 10px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .add-criteria-btn:hover {
+            background: #3367d6;
+            transform: translateY(-1px);
+        }
+        
+        .criteria-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        
+        .criteria-item input {
+            flex-grow: 1;
+            padding: 10px 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+        }
+        
+        .remove-criteria {
+            color: var(--accent-color);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: transform 0.2s ease;
+        }
+        
+        .remove-criteria:hover {
+            transform: scale(1.2);
+        }
+        
+        /* Секция сравнения */
+        .comparison-section {
+            margin: 25px 0;
+            border: 1px solid var(--medium-gray);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            background: white;
+            box-shadow: var(--box-shadow);
+        }
+        
+        .comparison-section h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .conclusion {
+            margin-top: 20px;
+            padding: 15px;
+            border-top: 1px solid var(--medium-gray);
+            background: rgba(66, 133, 244, 0.05);
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+        }
+        
+        /* Адаптация для мобильных устройств */
+        @media (max-width: 768px) {
+            .editor-container {
+                padding: 15px;
+                margin: 10px auto;
+            }
+            
+            .toolbar {
+                gap: 6px;
+            }
+            
+            .toolbar button, .toolbar select {
+                padding: 6px 10px;
+                font-size: 0.9rem;
+            }
+            
+            .text-editor {
+                padding: 15px;
+                min-height: 400px;
+            }
+            
+            .export-buttons {
+                justify-content: center;
+            }
+            
+            .export-btn {
+                padding: 10px 15px;
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .modal-content {
+                margin: 10% auto;
+                padding: 20px 15px;
+                width: 95%;
+            }
+            
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            
+            th, td {
+                padding: 8px 10px;
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .report-title {
+                font-size: 1.1rem;
+                padding: 10px;
+            }
+            
+            .toolbar {
+                justify-content: center;
+            }
+            
+            .comparison-section {
+                padding: 15px 10px;
+            }
+            
+            .candidate-item {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+        }

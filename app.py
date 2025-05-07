@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, Response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from sqlalchemy import or_
 import os
 import re
 from datetime import datetime, timezone
@@ -21,7 +22,7 @@ app.config['ADMIN_PASSWORD'] = '123456'
 # Инициализация базы данных
 db = SQLAlchemy(app)
 
-# Модели данных (соответствуют вашей схеме БД)
+# Модели данных (соответствуют  схеме postges БД)
 class User(db.Model):
     __tablename__ = 'Users'  
     id = db.Column(db.Integer, primary_key=True)
@@ -33,7 +34,7 @@ class User(db.Model):
     phone = db.Column(db.String(255))
     mail = db.Column(db.String(255), unique=True)
     image = db.Column(db.String(255))
-
+    
     def __repr__(self):
         return f'<User {self.mail}>'
     
@@ -47,13 +48,23 @@ class OfficeMap(db.Model):
     
     # Явное определение связи
     hr = db.relationship('HR', backref='maps')
-
+class HRNote(db.Model):
+    __tablename__ = 'hr_notes'
+    id = db.Column(db.Integer, primary_key=True)
+    hr_id = db.Column(db.Integer, db.ForeignKey('HR.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    hr = db.relationship('HR', backref=db.backref('notes', lazy=True, cascade='all, delete-orphan'))
 class HR(db.Model):
     __tablename__ = 'HR'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('Users.id'), unique=True, nullable=False)
     department = db.Column(db.String(255))
-    
+    note_title = db.Column(db.String(255))  #  столбец для заголовка заметки
+    note_content = db.Column(db.Text)      #  столбец для содержимого заметки
+
     # Связи
     user = db.relationship('User', backref=db.backref('hr_profile', uselist=False))
     tests = db.relationship('Test', back_populates='hr', cascade='all, delete-orphan')
@@ -81,16 +92,16 @@ class MapAccess(db.Model):
 class Test(db.Model):
     __tablename__ = 'tests'
     id = db.Column(db.Integer, primary_key=True)
-    hr_id = db.Column(db.Integer, db.ForeignKey('HR.id'), nullable=False)  # Добавляем ForeignKey
+    hr_id = db.Column(db.Integer, db.ForeignKey('HR.id'), nullable=False)  #  ForeignKey
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String(255))
     student_access = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     
-    # Добавляем связь с HR
+    #  связь с HR
     hr = db.relationship('HR', back_populates='tests')
     
-    # Добавляем связь с вопросами
+    #  связь с вопросами
     questions = db.relationship('TestQuestion', backref='test', cascade='all, delete-orphan')
 
 class Candidate(db.Model):
@@ -100,8 +111,10 @@ class Candidate(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('Users.id'), unique=True)
     status = db.Column(db.String(50))
     application_date = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Добавляем отношения
+    resume_file = db.Column(db.LargeBinary)  # Для хранения бинарных данных файла
+    resume_filename = db.Column(db.String(255))  # Для хранения имени файла
+    resume_content_type = db.Column(db.String(100))  # Для хранения MIME-типа
+    #  отношения
     hr = db.relationship('HR', back_populates='candidates')
     user = db.relationship('User', backref=db.backref('candidate_profile', uselist=False))
 
@@ -116,7 +129,7 @@ class Employee(db.Model):
     position = db.Column(db.String(255))
     hire_date = db.Column(db.DateTime, default=datetime.utcnow)
     additional_info = db.Column(db.Text)  # Здесь будут храниться оценки HR
-    # Добавляем связь с User
+    #  связь с User
     user = db.relationship('User', backref=db.backref('employee', uselist=False))
 class TestQuestion(db.Model):
     __tablename__ = 'test_questions'
@@ -175,8 +188,12 @@ class Report(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     hr_id = db.Column(db.Integer, db.ForeignKey('HR.id'))
     name = db.Column(db.String(255))
-    text = db.Column(db.Text)  # Рекомендую изменить на Text для хранения HTML
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Добавьте это поле
+    text = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_html = db.Column(db.Boolean, default=False)
+    is_binary = db.Column(db.Boolean, default=False)
+    file_type = db.Column(db.String(255))
+    binary_data = db.Column(db.LargeBinary)
     
     hr = db.relationship('HR', backref=db.backref('reports', lazy=True))
 
@@ -247,19 +264,370 @@ def admin():
         flash('Доступ запрещен. Требуются права администратора', 'error')
         return redirect(url_for('login'))
     
-    users = User.query.all()
-    candidates = User.query.filter_by(role='candidate').all()
-    hr_users = User.query.filter_by(role='hr').all()
+    try:
+        # Получаем всех пользователей, кроме системного администратора
+        users = User.query.filter(User.mail != app.config['ADMIN_EMAIL']).all()
+        
+        # Получаем всех HR (исключая системного админа)
+        hr_list = db.session.query(
+            HR.id.label('hr_id'),
+            User.id.label('user_id'),
+            User.surname,
+            User.name,
+            User.phone,
+            User.mail,
+            db.func.count(Candidate.id).label('candidates_count')
+        ).join(
+            User, HR.user_id == User.id
+        ).filter(
+            User.mail != app.config['ADMIN_EMAIL']
+        ).outerjoin(
+            Candidate, HR.id == Candidate.hr_id
+        ).group_by(
+            HR.id, User.id, User.surname, User.name, User.phone, User.mail
+        ).all()
+        
+        # Получаем детализированные данные о кандидатах
+        candidates_data = db.session.query(
+            Candidate.id.label('candidate_id'),
+            Candidate.hr_id,
+            Candidate.status,
+            User.id.label('user_id'),
+            User.surname,
+            User.name,
+            User.phone,
+            User.mail
+        ).join(
+            User, Candidate.user_id == User.id
+        ).all()
+        
+        # Группируем кандидатов по HR
+        hr_candidates = {}
+        for hr in hr_list:
+            hr_candidates[hr.hr_id] = {
+                'hr_info': {
+                    'id': hr.hr_id,
+                    'user_id': hr.user_id,
+                    'surname': hr.surname,
+                    'name': hr.name,
+                    'phone': hr.phone,
+                    'mail': hr.mail,
+                    'candidates_count': hr.candidates_count
+                },
+                'candidates': []
+            }
+        
+        for candidate in candidates_data:
+            if candidate.hr_id in hr_candidates:
+                hr_candidates[candidate.hr_id]['candidates'].append({
+                    'id': candidate.candidate_id,
+                    'user_id': candidate.user_id,
+                    'surname': candidate.surname,
+                    'name': candidate.name,
+                    'phone': candidate.phone,
+                    'mail': candidate.mail,
+                    'status': candidate.status
+                })
+        
+        # Получаем данные о тестах и резюме
+        tests_resumes = db.session.query(
+            User.id.label('user_id'),
+            User.surname,
+            User.name,
+            Candidate.id.label('candidate_id'),
+            Candidate.resume_filename,
+            Candidate.application_date,
+            TestAssignment.id.label('assignment_id'),
+            TestAssignment.completed,
+            Test.name.label('test_name'),
+            TestResult.score,
+            TestResult.max_score
+        ).join(
+            Candidate, User.id == Candidate.user_id
+        ).outerjoin(
+            TestAssignment, Candidate.id == TestAssignment.candidate_id
+        ).outerjoin(
+            Test, TestAssignment.test_id == Test.id
+        ).outerjoin(
+            TestResult, TestAssignment.id == TestResult.assignment_id
+        ).filter(
+            User.mail != app.config['ADMIN_EMAIL']
+        ).all()
+        
+        # Получаем всех сотрудников (кроме системного админа)
+        employees = User.query.filter(
+            User.role == 'employee',
+            User.mail != app.config['ADMIN_EMAIL']
+        ).all()
+        
+        # Считаем статистику (исключая системного админа)
+        stats = {
+            'total_users': len(users),
+            'candidates': len([u for u in users if u.role == 'candidate']),
+            'hr_managers': len(hr_list),
+            'employees': len(employees)
+        }
+        
+        return render_template('admin.html',
+                            current_user={
+                                'name': session.get('user_name', 'Администратор'),
+                                'role': 'admin'
+                            },
+                            users=users,
+                            hr_candidates=hr_candidates,
+                            employees=employees,
+                            tests_resumes=tests_resumes,
+                            stats=stats,
+                            current_year=datetime.now().year)
     
-    return render_template('admin.html',
-                         current_user={
-                             'name': session.get('user_name', 'Администратор'),
-                             'role': 'admin'
-                         },
-                         users=users,
-                         candidates=candidates,
-                         hr_list=hr_users,
-                         current_year=datetime.now().year)
+    except Exception as e:
+        flash(f'Произошла ошибка: {str(e)}', 'error')
+        return redirect(url_for('admin'))
+    
+from werkzeug.security import generate_password_hash
+
+# Эндпоинт для смены пароля
+@app.route('/admin/change_password', methods=['POST'])
+def admin_change_password():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    user_id = data.get('user_id')
+    new_password = data.get('new_password')
+    
+    if not user_id or not new_password:
+        return jsonify({'error': 'Missing user_id or new_password'}), 400
+    
+    # Минимальная проверка длины пароля
+    if len(new_password) < 5:
+        return jsonify({'error': 'Password must be at least 5 characters'}), 400
+    
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        user.password = generate_password_hash(new_password)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# Эндпоинт для проверки текущего пароля (не возвращает сам пароль)
+@app.route('/admin/check_password', methods=['POST'])
+def admin_check_password():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'Missing user_id'}), 400
+    
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Возвращаем только факт наличия пароля, но не сам пароль
+        return jsonify({
+            'has_password': bool(user.password),
+            'password_strength': 'strong' if len(user.password) > 50 else 'weak'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
+def admin_delete_user(user_id):
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Нельзя удалить администратора
+        if user.role == 'admin':
+            return jsonify({'error': 'Cannot delete admin user'}), 403
+        
+        # Удаляем связанные данные в зависимости от роли
+        if user.role == 'hr':
+            hr = HR.query.filter_by(user_id=user.id).first()
+            if hr:
+                # Удаляем все связанные данные HR
+                TestAssignment.query.filter_by(assigned_by=hr.id).delete()
+                OfficeMap.query.filter_by(hr_id=hr.id).delete()
+                Report.query.filter_by(hr_id=hr.id).delete()
+                db.session.delete(hr)
+        
+        elif user.role == 'candidate':
+            candidate = Candidate.query.filter_by(user_id=user.id).first()
+            if candidate:
+                # Удаляем все связанные тестовые назначения и результаты
+                assignments = TestAssignment.query.filter_by(candidate_id=candidate.id).all()
+                for assignment in assignments:
+                    TestResult.query.filter_by(assignment_id=assignment.id).delete()
+                    db.session.delete(assignment)
+                db.session.delete(candidate)
+        
+        elif user.role == 'employee':
+            employee = Employee.query.filter_by(user_id=user.id).first()
+            if employee:
+                db.session.delete(employee)
+        
+        # Удаляем самого пользователя
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/search_hr', methods=['GET'])
+def search_hr():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    search_term = request.args.get('term', '')
+    
+    try:
+        hr_list = db.session.query(
+            HR.id,
+            User.surname,
+            User.name,
+            User.phone
+        ).join(
+            User, HR.user_id == User.id
+        ).filter(
+            or_(
+                User.phone.ilike(f'%{search_term}%'),
+                User.surname.ilike(f'%{search_term}%'),
+                User.name.ilike(f'%{search_term}%')
+            )
+        ).limit(10).all()
+        
+        results = [{
+            'id': hr.id,
+            'name': f"{hr.surname} {hr.name}",
+            'phone': hr.phone
+        } for hr in hr_list]
+        
+        return jsonify(results)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/reassign_candidate', methods=['POST'])
+def reassign_candidate():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    candidate_id = data.get('candidate_id')
+    new_hr_id = data.get('new_hr_id')
+    
+    if not candidate_id or not new_hr_id:
+        return jsonify({'error': 'Missing candidate_id or new_hr_id'}), 400
+    
+    try:
+        candidate = Candidate.query.get(candidate_id)
+        if not candidate:
+            return jsonify({'error': 'Candidate not found'}), 404
+        
+        new_hr = HR.query.get(new_hr_id)
+        if not new_hr:
+            return jsonify({'error': 'HR not found'}), 404
+        
+        candidate.hr_id = new_hr.id
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# Дополнительный endpoint для получения всех данных для админки
+@app.route('/admin/get_all_data', methods=['GET'])
+def admin_get_all_data():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        # Получаем всех пользователей с их ролями
+        users = User.query.all()
+        users_data = [{
+            'id': u.id,
+            'name': f"{u.surname} {u.name}",
+            'role': u.role,
+            'email': u.mail,
+            'phone': u.phone
+        } for u in users]
+        
+        # Получаем всех HR с их кандидатами
+        hr_list = HR.query.options(
+            db.joinedload(HR.user),
+            db.joinedload(HR.candidates).joinedload(Candidate.user)
+        ).all()
+        
+        hr_candidates_data = []
+        for hr in hr_list:
+            for candidate in hr.candidates:
+                hr_candidates_data.append({
+                    'hr_id': hr.user.id,
+                    'hr_name': f"{hr.user.surname} {hr.user.name}",
+                    'hr_phone': hr.user.phone,
+                    'candidate_id': candidate.user.id,
+                    'candidate_name': f"{candidate.user.surname} {candidate.user.name}",
+                    'status': candidate.status
+                })
+        
+        # Получаем данные о тестах и резюме
+        candidates = Candidate.query.options(
+            db.joinedload(Candidate.user),
+            db.joinedload(Candidate.test_assignments).joinedload(TestAssignment.test),
+            db.joinedload(Candidate.test_assignments).joinedload(TestAssignment.results)
+        ).all()
+        
+        tests_resumes_data = []
+        for candidate in candidates:
+            tests_info = []
+            for assignment in candidate.test_assignments:
+                tests_info.append({
+                    'test_name': assignment.test.name,
+                    'status': 'Пройден' if assignment.completed else 'Ожидает',
+                    'result': f"{assignment.results.score}/{assignment.results.max_score}" if assignment.results else '-'
+                })
+            
+            tests_resumes_data.append({
+                'candidate_id': candidate.user.id,
+                'candidate_name': f"{candidate.user.surname} {candidate.user.name}",
+                'tests': tests_info,
+                'resume': bool(candidate.resume_filename),
+                'resume_date': candidate.application_date.strftime('%d.%m.%Y') if candidate.application_date else '-'
+            })
+        
+        return jsonify({
+            'users': users_data,
+            'hr_candidates': hr_candidates_data,
+            'tests_resumes': tests_resumes_data,
+            'stats': {
+                'total_users': len(users_data),
+                'candidates': len([u for u in users_data if u['role'] == 'candidate']),
+                'hr_managers': len([u for u in users_data if u['role'] == 'hr']),
+                'employees': len([u for u in users_data if u['role'] == 'employee'])
+            }
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 @app.route('/hire_candidate/<int:candidate_id>', methods=['POST'])
 def hire_candidate(candidate_id):
     if 'user_id' not in session or session.get('user_role') != 'hr':
@@ -507,48 +875,6 @@ def reject_candidate(candidate_id):
         return jsonify({'error': str(e)}), 500
 
     
-@app.route('/candidate')
-def candidate():
-    if 'user_id' not in session or session.get('user_role') != 'candidate':
-        flash('Доступ запрещен', 'error')
-        return redirect(url_for('login'))
-    
-    user = db.session.get(User, session['user_id'])
-    if not user:
-        flash('Пользователь не найден', 'error')
-        return redirect(url_for('login'))
-    
-    candidate_record = Candidate.query.filter_by(user_id=user.id).first()
-    if not candidate_record:
-        flash('Запись кандидата не найдена', 'error')
-        return redirect(url_for('login'))
-    
-    assigned_tests = TestAssignment.query.filter_by(
-        candidate_id=candidate_record.id
-    ).options(
-        db.joinedload(TestAssignment.test),
-        db.joinedload(TestAssignment.results)
-    ).all()
-
-    hr_contact = None
-    if candidate_record.hr_id:
-        hr_user = User.query.get(candidate_record.hr.user_id)
-        if hr_user:
-            hr_contact = {
-                'name': f"{hr_user.surname} {hr_user.name}",
-                'email': hr_user.mail,
-                'phone': hr_user.phone
-            }
-
-    return render_template('candidate.html',
-                         current_user={
-                             'name': f"{user.surname} {user.name}",
-                             'role': 'candidate'
-                         },
-                         hr_contact=hr_contact,
-                         assigned_tests=assigned_tests,
-                         current_year=datetime.now().year)
-
 
 @app.route('/hr')
 def hr():
@@ -563,14 +889,12 @@ def hr():
         flash('HR запись не найдена', 'error')
         return redirect(url_for('login'))
     
-    # Получаем кандидатов, тесты и результаты
     candidates = Candidate.query.filter_by(hr_id=hr_record.id).options(
         db.joinedload(Candidate.user)
     ).all()
     
     tests = Test.query.filter_by(hr_id=hr_record.id).all()
     
-    # Получаем все назначенные тесты с результатами
     assignments = TestAssignment.query.filter(
         TestAssignment.assigned_by == hr_record.id
     ).options(
@@ -579,10 +903,7 @@ def hr():
         db.joinedload(TestAssignment.results)
     ).all()
     
-    # Получаем отчеты (без сортировки по created_at, пока его нет в БД)
-    reports = Report.query.filter_by(hr_id=hr_record.id)\
-               .options(db.joinedload(Report.hr).joinedload(HR.user))\
-               .all()
+    reports = Report.query.filter_by(hr_id=hr_record.id).all()
     
     return render_template('hr.html',
                          current_user={
@@ -595,29 +916,28 @@ def hr():
                          reports=reports,
                          current_year=datetime.now().year)
 
-@app.route('/hr/test_results')
-def hr_test_results():
+@app.route('/download_candidate_resume/<int:candidate_id>')
+def download_candidate_resume(candidate_id):
     if 'user_id' not in session or session.get('user_role') != 'hr':
-        flash('Доступ запрещен', 'error')
-        return redirect(url_for('login'))
+        abort(403)
     
-    hr_user = User.query.get(session['user_id'])
-    hr_record = HR.query.filter_by(user_id=hr_user.id).first()
+    candidate = Candidate.query.get_or_404(candidate_id)
+    hr = HR.query.filter_by(user_id=session['user_id']).first()
     
-    # Получаем все назначенные тесты с результатами
-    assignments = TestAssignment.query.filter_by(
-        assigned_by=hr_record.id
-    ).options(
-        db.joinedload(TestAssignment.test),
-        db.joinedload(TestAssignment.candidate).joinedload(Candidate.user),
-        db.joinedload(TestAssignment.results)
-    ).all()
+    # Проверяем, что кандидат принадлежит текущему HR
+    if not hr or candidate.hr_id != hr.id:
+        abort(403)
     
-    return render_template('hr_test_results.html',
-                         assignments=assignments,
-                         current_user={
-                             'name': hr_user.name
-                         })
+    if not candidate.resume_file:
+        abort(404, description="Резюме не найдено")
+    
+    return Response(
+        candidate.resume_file,
+        mimetype=candidate.resume_content_type,
+        headers={
+            'Content-Disposition': f'attachment; filename="{candidate.resume_filename}"'
+        }
+    )
 
 @app.route('/hr/edit_test_result/<int:result_id>', methods=['GET', 'POST'])
 def edit_test_result(result_id):
@@ -1024,6 +1344,501 @@ def test_result(result_id):
                              'role': 'candidate'
                          })
 
+@app.route('/upload_report', methods=['POST'])
+def upload_report():
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        abort(403)
+    
+    file = request.files.get('report')
+    if not file:
+        abort(400, description="No file uploaded")
+    
+    hr = HR.query.filter_by(user_id=session['user_id']).first()
+    if not hr:
+        abort(403)
+    
+    # Определяем тип файла
+    file_type = file.mimetype
+    allowed_types = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ]
+    
+    if file_type not in allowed_types:
+        abort(400, description="Unsupported file type")
+    
+    try:
+        # Читаем файл
+        file_data = file.read()
+        
+        # Создаем запись в БД
+        report = Report(
+            hr_id=hr.id,
+            name=request.form.get('name', file.filename),
+            is_binary=True,
+            file_type=file_type[:255],  # Обрезаем до 255 символов на всякий случай
+            binary_data=file_data
+        )
+        
+        db.session.add(report)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'report': {
+                'id': report.id,
+                'name': report.name,
+                'created_at': report.created_at.isoformat()
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+    
+
+
+
+@app.route('/delete_report/<int:report_id>', methods=['POST'])
+def delete_report(report_id):
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        abort(403)
+    
+    report = Report.query.get_or_404(report_id)
+    hr = HR.query.filter_by(user_id=session['user_id']).first()
+    
+    if not hr or report.hr_id != hr.id:
+        abort(403)
+    
+    try:
+        db.session.delete(report)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+@app.route('/candidates/<int:candidate_id>/upload_resume', methods=['POST'])
+def upload_resume(candidate_id):
+    if 'user_id' not in session or session.get('user_role') != 'candidate':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # Проверяем, что кандидат существует и принадлежит текущему пользователю
+    candidate = Candidate.query.get_or_404(candidate_id)
+    if candidate.user_id != session['user_id']:
+        return jsonify({'error': 'Forbidden'}), 403
+    
+    if 'resume' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['resume']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    try:
+        # Сохраняем файл в базу данных
+        candidate.resume_file = file.read()
+        candidate.resume_filename = secure_filename(file.filename)
+        candidate.resume_content_type = file.mimetype
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/upload_map', methods=['POST'])
+def upload_map():
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    if 'name' not in request.form or 'image' not in request.files:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    name = request.form['name']
+    image = request.files['image']
+    
+    if not name or not image or image.filename == '':
+        return jsonify({'error': 'Invalid data'}), 400
+    
+    try:
+        # Читаем изображение как base64
+        image_data = "data:" + image.mimetype + ";base64," + base64.b64encode(image.read()).decode('utf-8')
+        
+        # Создаем новую карту
+        hr = HR.query.filter_by(user_id=session['user_id']).first()
+        new_map = OfficeMap(
+            hr_id=hr.id,
+            name=name,
+            image_data=image_data
+        )
+        db.session.add(new_map)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'map_id': new_map.id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/download_resume/<int:candidate_id>')
+def download_resume(candidate_id):
+    if 'user_id' not in session or session.get('user_role') != 'candidate':
+        abort(403)
+    
+    candidate = Candidate.query.get_or_404(candidate_id)
+    if candidate.user_id != session['user_id']:
+        abort(403)
+    
+    if not candidate.resume_file:
+        abort(404)
+    
+    return Response(
+        candidate.resume_file,
+        mimetype=candidate.resume_content_type,
+        headers={
+            'Content-Disposition': f'attachment; filename="{candidate.resume_filename}"'
+        }
+    )
+@app.route('/candidate')
+def candidate():
+    if 'user_id' not in session or session.get('user_role') != 'candidate':
+        flash('Доступ запрещен', 'error')
+        return redirect(url_for('login'))
+    
+    user = db.session.get(User, session['user_id'])
+    if not user:
+        flash('Пользователь не найден', 'error')
+        return redirect(url_for('login'))
+    
+    candidate_record = Candidate.query.filter_by(user_id=user.id).first()
+    if not candidate_record:
+        flash('Запись кандидата не найдена', 'error')
+        return redirect(url_for('login'))
+    
+    assigned_tests = TestAssignment.query.filter_by(
+        candidate_id=candidate_record.id
+    ).options(
+        db.joinedload(TestAssignment.test),
+        db.joinedload(TestAssignment.results)
+    ).all()
+
+    hr_contact = None
+    if candidate_record.hr_id:
+        hr_user = User.query.get(candidate_record.hr.user_id)
+        if hr_user:
+            hr_contact = {
+                'name': f"{hr_user.surname} {hr_user.name}",
+                'email': hr_user.mail,
+                'phone': hr_user.phone
+            }
+
+    # Передаем user как объект SQLAlchemy, а не словарь
+    return render_template('candidate.html',
+                         current_user=user,  # Теперь это объект User
+                         hr_contact=hr_contact,
+                         assigned_tests=assigned_tests,
+                         current_year=datetime.now().year)     
+@app.route('/hr/save_note', methods=['POST'])
+def save_hr_note():
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # Находим запись HR для текущего пользователя
+    hr_record = HR.query.filter_by(user_id=session['user_id']).first()
+    if not hr_record:
+        return jsonify({'error': 'HR record not found'}), 404
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    try:
+        # Обновляем поля заметки
+        hr_record.note_title = data.get('title', '')
+        hr_record.note_content = data.get('content', '')
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'note': {
+                'title': hr_record.note_title,
+                'content': hr_record.note_content
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/hr/delete_note', methods=['POST'])
+def delete_hr_note():
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # Находим запись HR для текущего пользователя
+    hr_record = HR.query.filter_by(user_id=session['user_id']).first()
+    if not hr_record:
+        return jsonify({'error': 'HR record not found'}), 404
+    
+    try:
+        # Очищаем поля заметки
+        hr_record.note_title = None
+        hr_record.note_content = None
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/hr/get_note')
+def get_hr_note():
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # Находим запись HR для текущего пользователя
+    hr_record = HR.query.filter_by(user_id=session['user_id']).first()
+    if not hr_record:
+        return jsonify({'error': 'HR record not found'}), 404
+    
+    # Возвращаем заметку, если она есть
+    if hr_record.note_title or hr_record.note_content:
+        return jsonify({
+            'note': {
+                'title': hr_record.note_title,
+                'content': hr_record.note_content
+            }
+        })
+    else:
+        return jsonify({'note': None})
+@app.route('/hr/notes', methods=['GET', 'POST'])
+def hr_notes():
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    hr = HR.query.filter_by(user_id=session['user_id']).first()
+    if not hr:
+        return jsonify({'error': 'HR not found'}), 404
+    
+    if request.method == 'GET':
+        # Получаем все заметки HR
+        notes = [{
+            'id': note.id,
+            'title': note.title,
+            'content': note.content,
+            'created_at': note.created_at.isoformat()
+        } for note in hr.notes]
+        return jsonify({'notes': notes})
+    
+    elif request.method == 'POST':
+        # Создаем новую заметку
+        data = request.get_json()
+        if not data or not data.get('title') or not data.get('content'):
+            return jsonify({'error': 'Title and content are required'}), 400
+        
+        try:
+            new_note = HRNote(
+                hr_id=hr.id,
+                title=data['title'],
+                content=data['content']
+            )
+            db.session.add(new_note)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'note': {
+                    'id': new_note.id,
+                    'title': new_note.title,
+                    'content': new_note.content,
+                    'created_at': new_note.created_at.isoformat()
+                }
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+@app.route('/hr/notes/<int:note_id>', methods=['PUT', 'DELETE'])
+def hr_note(note_id):
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    hr = HR.query.filter_by(user_id=session['user_id']).first()
+    if not hr:
+        return jsonify({'error': 'HR not found'}), 404
+    
+    note = HRNote.query.filter_by(id=note_id, hr_id=hr.id).first()
+    if not note:
+        return jsonify({'error': 'Note not found'}), 404
+    
+    if request.method == 'PUT':
+        # Обновляем заметку
+        data = request.get_json()
+        if not data or not data.get('title') or not data.get('content'):
+            return jsonify({'error': 'Title and content are required'}), 400
+        
+        try:
+            note.title = data['title']
+            note.content = data['content']
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'note': {
+                    'id': note.id,
+                    'title': note.title,
+                    'content': note.content
+                }
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'DELETE':
+        # Удаляем заметку
+        try:
+            db.session.delete(note)
+            db.session.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+@app.route('/hr/compare_candidates_data')
+def compare_candidates_data():
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    candidate_ids = request.args.get('candidate_ids', '').split(',')
+    if not candidate_ids or len(candidate_ids) < 2:
+        return jsonify({'error': 'Необходимо выбрать минимум 2 кандидата'}), 400
+    
+    try:
+        # Получаем тест "Резюме" для текущего HR
+        hr = HR.query.filter_by(user_id=session['user_id']).first()
+        resume_test = Test.query.filter_by(hr_id=hr.id, name="Резюме").first()
+        
+        if not resume_test:
+            return jsonify({'error': 'Тест "Резюме" не найден'}), 404
+        
+        # Получаем данные о кандидатах и их ответах
+        candidates_data = []
+        questions_data = []
+        
+        # Получаем вопросы теста
+        questions = TestQuestion.query.filter_by(test_id=resume_test.id).order_by(TestQuestion.order_num).all()
+        for question in questions:
+            questions_data.append({
+                'id': question.id,
+                'text': question.question_text,
+                'type': question.question_type,
+                'correct_answer': question.correct_answer,
+                'points': question.points
+            })
+        
+        # Получаем данные по каждому кандидату
+        for candidate_id in candidate_ids:
+            # Получаем результаты теста кандидата
+            result = TestResult.query.filter_by(
+                test_id=resume_test.id,
+                user_id=candidate_id
+            ).first()
+            
+            if not result:
+                continue
+            
+            # Получаем информацию о кандидате
+            candidate = Candidate.query.filter_by(user_id=candidate_id).first()
+            user = User.query.get(candidate_id)
+            
+            # Формируем данные кандидата
+            candidates_data.append({
+                'id': candidate_id,
+                'name': f"{user.surname} {user.name}",
+                'vacancy': candidate.status,
+                'answers': result.answers,
+                'question_scores': {dr['question_id']: dr['score'] for dr in result.detailed_results}
+            })
+        
+        return jsonify({
+            'questions': questions_data,
+            'candidates': candidates_data
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+             
+@app.route('/hr/compare_candidates', methods=['GET', 'POST'])
+def compare_candidates():
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        flash('Доступ запрещен', 'error')
+        return redirect(url_for('login'))
+    
+    hr = HR.query.filter_by(user_id=session['user_id']).first()
+    if not hr:
+        flash('HR запись не найдена', 'error')
+        return redirect(url_for('login'))
+    
+    # Получаем тест "Резюме"
+    resume_test = Test.query.filter_by(hr_id=hr.id, name="Резюме").first()
+    
+    if not resume_test:
+        flash('Тест "Резюме" не найден', 'error')
+        return redirect(url_for('hr'))
+    
+    if request.method == 'POST':
+        # Обработка выбора оптимального кандидата
+        selected_answers = request.get_json().get('selected_answers', [])
+        
+        # Считаем баллы для каждого кандидата
+        candidate_scores = {}
+        for answer in selected_answers:
+            candidate_id = answer['candidate_id']
+            points = answer['points']
+            candidate_scores[candidate_id] = candidate_scores.get(candidate_id, 0) + points
+        
+        # Находим максимальный балл
+        max_score = max(candidate_scores.values()) if candidate_scores else 0
+        
+        # Находим всех кандидатов с максимальным баллом
+        best_candidates = [cand_id for cand_id, score in candidate_scores.items() if score == max_score]
+        
+        return jsonify({
+            'best_candidates': best_candidates,
+            'scores': candidate_scores
+        })
+    
+    # Получаем всех кандидатов с заполненным резюме
+    candidates = Candidate.query.filter_by(hr_id=hr.id).options(
+        db.joinedload(Candidate.user),
+        db.joinedload(Candidate.test_assignments).joinedload(TestAssignment.results)
+    ).all()
+    
+    candidates_with_resume = []
+    for candidate in candidates:
+        # Ищем назначение теста "Резюме" для кандидата
+        assignment = next(
+            (a for a in candidate.test_assignments 
+             if a.test_id == resume_test.id and a.completed and a.results),
+            None
+        )
+        if assignment:
+            candidates_with_resume.append({
+                'id': candidate.id,
+                'user_id': candidate.user_id,
+                'name': f"{candidate.user.surname} {candidate.user.name}",
+                'vacancy': candidate.status,
+                'results': assignment.results
+            })
+    
+    return render_template('compare_candidates.html',
+                         candidates=candidates_with_resume,
+                         resume_test=resume_test,
+                         current_user={
+                             'name': session.get('user_name')
+                         })
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -1035,6 +1850,7 @@ def register():
         phone = request.form.get('phone')
         password = request.form.get('password')
         photo = request.files.get('photo')
+        vacancy = request.form.get('vacancy', '')  # Новое поле
         
         errors = []
         
@@ -1067,7 +1883,7 @@ def register():
                 patronymic=patronymic,
                 mail=email,
                 phone=phone,
-                password=generate_password_hash(password),
+                password=password,
                 image=photo_filename
             )
             db.session.add(new_user)
@@ -1101,12 +1917,11 @@ def register():
                     db.session.add(hr_record)
                     db.session.flush()  # Получаем ID новой записи
                 
-                
                 # Создаем кандидата с правильным hr_id (из таблицы HR)
                 candidate = Candidate(
                     user_id=new_user.id,
                     hr_id=hr_record.id,  # Используем id из таблицы HR
-                    status='new'
+                    status=vacancy  # Используем название вакансии как статус
                 )
                 db.session.add(candidate)
 
@@ -1131,6 +1946,7 @@ def report_editor():
         flash('Доступ запрещен', 'error')
         return redirect(url_for('login'))
     return render_template('report_editor.html')
+
 @app.route('/reports/<int:report_id>')
 def view_report(report_id):
     if 'user_id' not in session or session.get('user_role') != 'hr':
@@ -1143,29 +1959,93 @@ def view_report(report_id):
         flash('Нет прав доступа к этому отчету', 'error')
         return redirect(url_for('hr'))
     
-    return render_template('view_report.html', report=report)
-
-@app.route('/reports/<int:report_id>/download/<format>')
-def download_report(report_id, format):
+    return render_template('view_report.html', 
+                         report=report,
+                         current_user={
+                             'name': session.get('user_name')
+                         })
+# Маршрут для скачивания оригинального файла
+@app.route('/reports/<int:report_id>/download')
+def download_report(report_id):
     if 'user_id' not in session or session.get('user_role') != 'hr':
-        flash('Доступ запрещен', 'error')
-        return redirect(url_for('login'))
+        abort(403)
     
     report = Report.query.get_or_404(report_id)
-    # Проверка, что отчет принадлежит текущему HR
-    if report.hr.user_id != session['user_id']:
-        flash('Нет прав доступа к этому отчету', 'error')
-        return redirect(url_for('hr'))
+    hr = HR.query.filter_by(user_id=session['user_id']).first()
+    
+    if not hr or report.hr_id != hr.id:
+        abort(403)
+    
+    if report.is_binary and report.binary_data:
+        ext = 'bin'
+        if 'pdf' in report.file_type:
+            ext = 'pdf'
+        elif 'word' in report.file_type or 'msword' in report.file_type:
+            ext = 'docx' if 'openxml' in report.file_type else 'doc'
+        
+        return Response(
+            report.binary_data,
+            mimetype=report.file_type,
+            headers={'Content-Disposition': f'attachment; filename={report.name}.{ext}'}
+        )
+    else:
+        return Response(
+            report.text,
+            mimetype='text/plain',
+            headers={'Content-Disposition': f'attachment; filename={report.name}.txt'}
+        )
+
+# Маршрут для конвертации в другие форматы
+@app.route('/reports/<int:report_id>/export/<format>')
+def export_report(report_id, format):
+    if 'user_id' not in session or session.get('user_role') != 'hr':
+        abort(403)
+    
+    report = Report.query.get_or_404(report_id)
+    hr = HR.query.filter_by(user_id=session['user_id']).first()
+    
+    if not hr or report.hr_id != hr.id:
+        abort(403)
     
     if format == 'pdf':
-        # Генерация PDF (используйте ваш код экспорта в PDF)
-        return "PDF generation would be here"
+        from io import BytesIO
+        from reportlab.pdfgen import canvas
+        
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer)
+        p.drawString(100, 100, report.name)
+        p.drawString(100, 120, report.text[:500] if report.text else "Бинарный файл - скачайте оригинал")
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        
+        return Response(
+            buffer,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'attachment; filename={report.name}.pdf'}
+        )
+    
     elif format == 'word':
-        # Генерация Word (используйте ваш код экспорта в Word)
-        return "Word generation would be here"
+        from docx import Document
+        from io import BytesIO
+        
+        document = Document()
+        document.add_heading(report.name, 0)
+        document.add_paragraph(report.text if report.text else "Бинарный файл - скачайте оригинал")
+        
+        buffer = BytesIO()
+        document.save(buffer)
+        buffer.seek(0)
+        
+        return Response(
+            buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            headers={'Content-Disposition': f'attachment; filename={report.name}.docx'}
+        )
+    
     else:
-        flash('Неверный формат', 'error')
-        return redirect(url_for('view_report', report_id=report_id))
+        abort(400, description="Unsupported format")
+
     
 @app.route('/api/hr_candidates')
 def get_hr_candidates():

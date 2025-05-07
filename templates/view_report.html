@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Просмотр отчета: {{ report.name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/hr.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/view_report.css') }}">
+    {% if report.is_binary and 'pdf' in report.file_type %}
+    <!-- Для PDF используем PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    {% endif %}
 </head>
 <body>
     <div class="container">
@@ -15,13 +19,82 @@
         </div>
         
         <div class="report-content">
-            {{ report.text|safe }}
+            {% if report.is_binary %}
+                {% if 'pdf' in report.file_type %}
+                <div class="pdf-container">
+                    <div id="pdf-viewer"></div>
+                </div>
+                <script>
+                    // Инициализация PDF.js
+                    pdfjsLib.getDocument("{{ url_for('download_report', report_id=report.id) }}").promise.then(function(pdf) {
+                        // Для первой страницы
+                        pdf.getPage(1).then(function(page) {
+                            var scale = 1.5;
+                            var viewport = page.getViewport({scale: scale});
+                            
+                            var canvas = document.createElement('canvas');
+                            var context = canvas.getContext('2d');
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+                            
+                            document.getElementById('pdf-viewer').appendChild(canvas);
+                            
+                            page.render({
+                                canvasContext: context,
+                                viewport: viewport
+                            });
+                        });
+                        
+                        // Если нужно отобразить все страницы
+                        for (var i = 1; i <= pdf.numPages; i++) {
+                            pdf.getPage(i).then(function(page) {
+                                var scale = 1.5;
+                                var viewport = page.getViewport({scale: scale});
+                                
+                                var canvas = document.createElement('canvas');
+                                var context = canvas.getContext('2d');
+                                canvas.height = viewport.height;
+                                canvas.width = viewport.width;
+                                
+                                document.getElementById('pdf-viewer').appendChild(canvas);
+                                
+                                page.render({
+                                    canvasContext: context,
+                                    viewport: viewport
+                                });
+                            });
+                        }
+                    }).catch(function(error) {
+                        console.error('PDF loading error:', error);
+                        document.getElementById('pdf-viewer').innerHTML = 
+                            '<div style="padding:20px;color:red;">Ошибка загрузки PDF. Пожалуйста, скачайте файл для просмотра.</div>';
+                    });
+                </script>
+                {% elif 'word' in report.file_type or 'msword' in report.file_type %}
+                <div class="file-preview">
+                    <p>Это документ Word. Для просмотра скачайте файл.</p>
+                </div>
+                {% else %}
+                <div class="file-preview">
+                    <p>Бинарный файл. Для просмотра скачайте его.</p>
+                </div>
+                {% endif %}
+            {% else %}
+                {{ report.text|safe }}
+            {% endif %}
         </div>
         
         <div class="actions">
             <a href="{{ url_for('hr') }}" class="button">Назад</a>
-            <a href="{{ url_for('download_report', report_id=report.id, format='pdf') }}" class="button primary">Скачать PDF</a>
-            <a href="{{ url_for('download_report', report_id=report.id, format='word') }}" class="button primary">Скачать Word</a>
+            {% if not report.is_binary %}
+                <a href="{{ url_for('export_report', report_id=report.id, format='pdf') }}" class="button primary">Скачать PDF</a>
+                <a href="{{ url_for('export_report', report_id=report.id, format='word') }}" class="button primary">Скачать Word</a>
+            {% else %}
+                <a href="{{ url_for('download_report', report_id=report.id) }}" class="button primary">Скачать оригинал</a>
+                {% if 'pdf' not in report.file_type %}
+                    <a href="{{ url_for('export_report', report_id=report.id, format='pdf') }}" class="button primary">Конвертировать в PDF</a>
+                {% endif %}
+            {% endif %}
         </div>
     </div>
 </body>

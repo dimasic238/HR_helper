@@ -256,3 +256,20 @@ footer {
         text-align: center;
     }
 }
+.maps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+.map-card {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    background-color: #fff;
+}
+.map-image {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+}

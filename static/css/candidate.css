@@ -1,168 +1,371 @@
+:root {
+    --primary-color: #2E7D32; /* Глубокий зеленый */
+    --primary-light: #4CAF50; /* Светлее зеленый */
+    --primary-dark: #1B5E20; /* Темный зеленый */
+    --secondary-color: #F5F5F5; /* Светло-серый */
+    --accent-color: #8BC34A; /* Салатовый акцент */
+    --text-dark: #212121; /* Темный текст */
+    --text-light: #757575; /* Светлый текст */
+    --white: #FFFFFF;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
+}
+
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
+    background-color: var(--secondary-color);
+    color: var(--text-dark);
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    line-height: 1.6;
+}
+ /* Добавляем стили для секции резюме */
+ .resume-section {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-header {
+.resume-upload {
+    margin-top: 15px;
+}
+
+.resume-status {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+}
+
+.resume-status-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.resume-status-icon.uploaded {
     background-color: #4CAF50;
-    color: white;
-    padding: 20px 0;
+}
+
+.resume-status-icon.not-uploaded {
+    background-color: #f44336;
+}
+
+.upload-form {
+    margin-top: 15px;
+    display: none;
+}
+
+.upload-form.active {
+    display: block;
+}
+
+.file-input-wrapper {
+    margin: 10px 0;
+}
+
+.completed {
+    color: green;
+    font-weight: bold;
+}
+
+.pending {
+    color: orange;
+}
+
+.test-table {
+    width: 100%;
+    margin-top: 20px;
+}
+header {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+    color: var(--white);
+    padding: 1.5rem 0;
     text-align: center;
     position: relative;
+    box-shadow: var(--shadow);
 }
 
 header h1 {
     margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
 header .user-info {
     position: absolute;
     top: 50%;
-    right: 20px;
+    right: 2rem;
     transform: translateY(-50%);
     display: flex;
     align-items: center;
-    gap: 10px;
-}
-
-header .user-photo {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: 2px solid white;
+    gap: 1rem;
 }
 
 header .user-name {
-    font-size: 20px;
-    font-weight: bold;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.logout-btn {
+    color: var(--white);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: var(--transition);
+}
+
+.logout-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 nav {
-    background-color: #333;
-    overflow: hidden;
+    background-color: var(--primary-color);
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
+    box-shadow: var(--shadow);
 }
 
 nav a {
-    color: white;
+    color: var(--white);
     text-align: center;
-    padding: 14px 20px;
+    padding: 1rem 1.5rem;
     text-decoration: none;
     flex: 1 1 auto;
+    transition: var(--transition);
+    font-weight: 500;
+    letter-spacing: 0.5px;
 }
 
 nav a:hover {
-    background-color: #575757;
+    background-color: var(--primary-dark);
 }
 
 .container {
     flex: 1;
-    padding: 20px;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 .section {
-    background-color: white;
-    padding: 20px;
-    margin-bottom: 20px;
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    background-color: var(--white);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+}
+
+.section:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 .section h2 {
     margin-top: 0;
+    color: var(--primary-dark);
+    font-weight: 600;
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
 }
 
-.test-instructions {
-    text-align: center;
-}
-
-.test-instructions p {
-    margin-bottom: 20px;
-}
-
-.hr-info, .speciality-info {
-    padding: 10px;
-    background-color: #f9f9f9;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-}
-
-.hr-info p, .speciality-info p {
-    margin: 10px 0;
-}
-
-.button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+.test-table {
     width: 100%;
-    max-width: 200px;
-    margin-top: 10px;
+    border-collapse: collapse;
+    margin-top: 1.5rem;
 }
 
-.button:hover {
-    background-color: #45a049;
+.test-table th {
+    background-color: var(--primary-light);
+    color: var(--white);
+    padding: 1rem;
+    text-align: left;
+}
+
+.test-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.test-table tr:hover {
+    background-color: rgba(139, 195, 74, 0.1);
+}
+
+.completed {
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+.pending {
+    color: #FF9800;
+    font-weight: 500;
+}
+
+.take-test-btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background-color: var(--primary-light);
+    color: var(--white);
+    text-decoration: none;
+    border-radius: 4px;
+    transition: var(--transition);
+    font-weight: 500;
+}
+
+.take-test-btn:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.hr-info, .position-info {
+    padding: 1.5rem;
+    background-color: var(--secondary-color);
+    border-left: 4px solid var(--accent-color);
+    border-radius: 4px;
+}
+
+.hr-info p, .position-info p {
+    margin: 0.8rem 0;
+}
+
+.hr-info strong, .position-info strong {
+    color: var(--primary-dark);
 }
 
 footer {
-    background-color: #333;
-    color: white;
+    background-color: var(--primary-dark);
+    color: var(--white);
     text-align: center;
-    padding: 10px 0;
+    padding: 1.5rem 0;
     margin-top: auto;
+    font-size: 0.9rem;
 }
 
 /* Адаптация для мобильных устройств */
-@media (max-width: 600px) {
-    nav a {
-        flex: 1 1 100%;
+@media (max-width: 768px) {
+    header {
+        padding: 1rem 0;
+        flex-direction: column;
     }
-
-    .button {
-        width: 100%;
-        max-width: none;
+    
+    header h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
     }
-
-    .container {
-        padding: 10px;
-    }
-
-    .section {
-        padding: 15px;
-    }
-
+    
     header .user-info {
         position: static;
         transform: none;
         justify-content: center;
-        margin-top: 10px;
-    }
-
-    header .user-name {
-        font-size: 18px;
-    }
-
-    .take-test-btn {
-        display: inline-block;
-        padding: 5px 10px;
-        background-color: #4CAF50;
-        color: white;
-        text-decoration: none;
-        border-radius: 4px;
-        font-size: 14px;
+        margin-top: 0.5rem;
     }
     
-    .take-test-btn:hover {
-        background-color: #45a049;
+    nav a {
+        padding: 0.8rem;
+        font-size: 0.9rem;
+    }
+    
+    .container {
+        padding: 1rem;
+    }
+    
+    .section {
+        padding: 1.5rem;
+    }
+    
+    .test-table th, 
+    .test-table td {
+        padding: 0.8rem;
+        font-size: 0.9rem;
+    }
+    
+    .take-test-btn {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
     }
 }
+
+@media (max-width: 480px) {
+    .test-table {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    nav a {
+        flex: 1 1 100%;
+    }
+    
+    .section {
+        padding: 1rem;
+    }
+}
+        /* Добавляем стили для секции резюме */
+        .resume-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .resume-upload {
+            margin-top: 15px;
+        }
+        
+        .resume-status {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .resume-status-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .resume-status-icon.uploaded {
+            background-color: #4CAF50;
+        }
+        
+        .resume-status-icon.not-uploaded {
+            background-color: #f44336;
+        }
+        
+        .upload-form {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .upload-form.active {
+            display: block;
+        }
+        
+        .file-input-wrapper {
+            margin: 10px 0;
+        }
+        
+        .completed {
+            color: green;
+            font-weight: bold;
+        }
+        
+        .pending {
+            color: orange;
+        }
+        
+        .test-table {
+            width: 100%;
+            margin-top: 20px;
+        }
