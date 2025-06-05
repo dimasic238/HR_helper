@@ -8,7 +8,7 @@ import os
 import base64
 from sqlalchemy import or_
 from utils import is_valid_email, is_valid_phone, save_uploaded_file
-    
+
 app = create_app()
 
 @app.route('/')
